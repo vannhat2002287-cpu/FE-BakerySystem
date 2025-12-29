@@ -1,11 +1,11 @@
 import { Category, Product, Inventory } from './types';
 
 export const CATEGORIES: Category[] = [
-  { category_id: 'c1', name: 'パン (Breads)' },
-  { category_id: 'c2', name: 'サンドイッチ (Sandwiches)' },
-  { category_id: 'c3', name: 'ケーキ (Cakes)' },
-  { category_id: 'c4', name: 'ドリンク (Drinks)' },
-  { category_id: 'c5', name: 'アルコール (Alcohol)' },
+  { category_id: 'c1', name: 'パン' },
+  { category_id: 'c2', name: 'サンドイッチ' },
+  { category_id: 'c3', name: 'ケーキ' },
+  { category_id: 'c4', name: 'ドリンク' },
+  { category_id: 'c5', name: 'アルコール' },
 ];
 
 export const INITIAL_PRODUCTS: Product[] = [

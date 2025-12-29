@@ -59,13 +59,13 @@ const HistoryPage: React.FC = () => {
           onClick={() => setActiveTab('daily')}
           className={`px-6 py-3 font-medium text-sm rounded-t-lg transition-colors ${activeTab === 'daily' ? 'bg-white border-t border-l border-r border-gray-200 text-brand-600' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
         >
-          日次レポート (Daily)
+          日次レポート
         </button>
         <button 
           onClick={() => setActiveTab('product')}
           className={`px-6 py-3 font-medium text-sm rounded-t-lg transition-colors ${activeTab === 'product' ? 'bg-white border-t border-l border-r border-gray-200 text-brand-600' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
         >
-          商品分析 (Product Analysis)
+          商品分析
         </button>
       </div>
 

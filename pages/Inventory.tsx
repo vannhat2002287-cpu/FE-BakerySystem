@@ -2,31 +2,45 @@ import React, { useMemo, useState } from 'react';
 import { useStore } from '../store/StoreContext';
 import { Edit2, Save, X, Factory, PackageCheck, ClipboardList } from 'lucide-react';
 
+// Định nghĩa các trạng thái có thể có của một yêu cầu nhập hàng
 type FactoryRequestStatus = 'PENDING' | 'DELIVERED' | 'CANCELLED';
 
+// Định nghĩa cấu trúc dữ liệu cho một yêu cầu nhập hàng từ nhà máy
 type FactoryRequest = {
   request_id: string;
   product_id: string;
   product_name: string;
   request_quantity: number;
-  created_at: string;      // ISO
-  eta_at: string;          // ISO
-  note?: string;
+  created_at: string;      // Thời gian tạo (ISO string)
+  eta_at: string;          // Thời gian dự kiến giao hàng (ISO string)
+  note?: string;           // Ghi chú tùy chọn
   status: FactoryRequestStatus;
 };
 
+// Hàm tiện ích: Cộng thêm phút vào thời gian hiện tại (Dùng để tính ETA mặc định)
 const addMinutes = (date: Date, minutes: number) => new Date(date.getTime() + minutes * 60 * 1000);
 
+/**
+ * Component InventoryPage
+ * Mục đích: Quản lý hiển thị tồn kho, chỉnh sửa số lượng tồn kho thủ công,
+ * và quản lý quy trình yêu cầu nhập hàng bổ sung từ nhà máy (Factory Request).
+ */
 const InventoryPage: React.FC = () => {
+  // Lấy dữ liệu và hàm cập nhật từ Global Store
   const { products, inventory, updateInventory } = useStore();
 
-  // ===== 기존: 在庫調整(edit) =====
+  // ===== Phần 1: State cho chức năng chỉnh sửa tồn kho thủ công (Inline Edit) =====
+  // editingId: Lưu ID sản phẩm đang được chỉnh sửa. Nếu null nghĩa là không có dòng nào đang sửa.
   const [editingId, setEditingId] = useState<string | null>(null);
+  // editValue: Lưu giá trị tạm thời của ô input khi người dùng đang nhập liệu.
   const [editValue, setEditValue] = useState<number>(0);
 
-  // ===== NEW: 工場依頼 =====
+  // ===== Phần 2: State cho chức năng Yêu cầu Nhà máy (Factory Request) =====
+  // factoryRequests: Danh sách các yêu cầu đã tạo (Lưu cục bộ trong component này).
   const [factoryRequests, setFactoryRequests] = useState<FactoryRequest[]>([]);
+  // requestModalOpen: Trạng thái đóng/mở của Modal yêu cầu nhập hàng.
   const [requestModalOpen, setRequestModalOpen] = useState(false);
+  // requestTarget: Lưu thông tin sản phẩm đang được chọn để tạo yêu cầu (để hiển thị lên Modal).
   const [requestTarget, setRequestTarget] = useState<{
     product_id: string;
     product_name: string;
@@ -34,10 +48,18 @@ const InventoryPage: React.FC = () => {
     threshold: number;
   } | null>(null);
 
+  // State cho Form trong Modal
   const [requestQty, setRequestQty] = useState<number>(10);
   const [requestNote, setRequestNote] = useState<string>('');
-  const [requestEta, setRequestEta] = useState<string>(() => addMinutes(new Date(), 5).toISOString().slice(0, 16)); // "YYYY-MM-DDTHH:mm"
+  // Mặc định thời gian giao hàng là 5 phút sau khi tạo (Giả lập khoảng cách gần)
+  const [requestEta, setRequestEta] = useState<string>(() => addMinutes(new Date(), 5).toISOString().slice(0, 16)); // Format: "YYYY-MM-DDTHH:mm"
 
+  /**
+   * useMemo - mergedData:
+   * Mục đích: Kết hợp dữ liệu tĩnh (Product) và dữ liệu động (Inventory) thành một mảng duy nhất.
+   * Lý do: Để hiển thị đầy đủ thông tin (Ảnh, Tên, Tồn kho, Mức cảnh báo) trên cùng một bảng.
+   * Chỉ tính toán lại khi `products` hoặc `inventory` thay đổi để tối ưu hiệu năng.
+   */
   const mergedData = useMemo(() => {
     return products.map(p => {
       const inv = inventory.find(i => i.product_id === p.product_id);
@@ -50,67 +72,87 @@ const InventoryPage: React.FC = () => {
     });
   }, [products, inventory]);
 
+  // Bắt đầu chỉnh sửa thủ công: Lưu ID và giá trị hiện tại vào state tạm
   const startEdit = (id: string, current: number) => {
     setEditingId(id);
     setEditValue(current);
   };
 
+  // Lưu chỉnh sửa thủ công: Gọi action updateInventory của Store và đóng chế độ sửa
   const saveEdit = (id: string) => {
     updateInventory(id, editValue);
     setEditingId(null);
   };
 
-  // ===== NEW: 工場依頼 관련 핸들러 =====
+  // ===== Các hàm xử lý logic cho Yêu cầu Nhà máy =====
+
+  // Mở Modal: Thiết lập dữ liệu ban đầu cho form
   const openRequestModal = (product_id: string, product_name: string, stock: number, threshold: number) => {
     setRequestTarget({ product_id, product_name, current_stock: stock, threshold });
-    // 추천 수량: (threshold * 2 - current) 최소 1, 기본 10
+    
+    // Logic gợi ý số lượng: 
+    // Công thức: (Mức cảnh báo * 2) - Tồn kho hiện tại.
+    // Mục đích: Đề xuất số lượng nạp kho hợp lý để kho không bị đầy quá hoặc thiếu quá.
+    // Tối thiểu là 1, mặc định fallback là 10.
     const recommended = Math.max(1, threshold * 2 - stock);
+    
     setRequestQty(recommended || 10);
     setRequestNote('');
-    setRequestEta(addMinutes(new Date(), 5).toISOString().slice(0, 16)); // 5分後
+    setRequestEta(addMinutes(new Date(), 5).toISOString().slice(0, 16)); // Reset lại ETA là 5 phút từ bây giờ
     setRequestModalOpen(true);
   };
 
+  // Tạo yêu cầu mới: Đóng gói dữ liệu và thêm vào danh sách
   const createFactoryRequest = () => {
     if (!requestTarget) return;
 
     const qty = Number.isFinite(requestQty) ? Math.max(1, requestQty) : 1;
 
     const newReq: FactoryRequest = {
-      request_id: `FR-${Date.now()}`,
+      request_id: `FR-${Date.now()}`, // Tạo ID giả lập dựa trên timestamp
       product_id: requestTarget.product_id,
       product_name: requestTarget.product_name,
       request_quantity: qty,
       created_at: new Date().toISOString(),
       eta_at: new Date(requestEta).toISOString(),
       note: requestNote?.trim() || undefined,
-      status: 'PENDING'
+      status: 'PENDING' // Trạng thái ban đầu là Đang chờ
     };
 
-    setFactoryRequests(prev => [newReq, ...prev]);
+    setFactoryRequests(prev => [newReq, ...prev]); // Thêm vào đầu danh sách
     setRequestModalOpen(false);
     setRequestTarget(null);
   };
 
+  // Hủy yêu cầu: Chỉ đổi trạng thái, không xóa khỏi danh sách để giữ lịch sử
   const cancelFactoryRequest = (request_id: string) => {
     setFactoryRequests(prev =>
       prev.map(r => (r.request_id === request_id ? { ...r, status: 'CANCELLED' } : r))
     );
   };
 
-  // 수령(납품 완료) -> 재고를 현재 재고 + 요청 수량으로 업데이트
+  /**
+   * Xử lý nhận hàng (DELIVERED):
+   * Mục đích: Xác nhận hàng đã về và cập nhật số lượng tồn kho thực tế.
+   * Logic: 
+   * 1. Tìm tồn kho mới nhất từ `mergedData` (để đảm bảo tính chính xác realtime).
+   * 2. Cộng dồn số lượng yêu cầu vào tồn kho hiện tại.
+   * 3. Cập nhật trạng thái yêu cầu thành 'DELIVERED'.
+   */
   const markDeliveredAndApplyStock = (req: FactoryRequest) => {
-    // 현재 화면의 재고(mergedData)에서 최신 재고를 찾아 더 안전하게 반영
     const latest = mergedData.find(m => m.product_id === req.product_id);
     const currentStock = latest?.stock ?? 0;
 
+    // Cập nhật Store toàn cục
     updateInventory(req.product_id, currentStock + req.request_quantity);
 
+    // Cập nhật trạng thái yêu cầu cục bộ
     setFactoryRequests(prev =>
       prev.map(r => (r.request_id === req.request_id ? { ...r, status: 'DELIVERED' } : r))
     );
   };
 
+  // Hàm format ngày tháng sang chuẩn Nhật Bản để hiển thị giao diện
   const formatJa = (iso: string) => new Date(iso).toLocaleString('ja-JP');
 
   return (
@@ -123,7 +165,7 @@ const InventoryPage: React.FC = () => {
           </p>
         </div>
 
-        {/* 工場依頼一覧(簡易カウンタ) */}
+        {/* Thống kê nhanh số lượng yêu cầu đang chờ */}
         <div className="flex items-center gap-2 text-xs">
           <span className="inline-flex items-center px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 text-gray-600">
             <ClipboardList className="w-4 h-4 mr-2" />
@@ -133,7 +175,7 @@ const InventoryPage: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* ===== 左: 在庫テーブル ===== */}
+        {/* ===== Cột Trái: Bảng Tồn kho (Inventory Table) ===== */}
         <div className="xl:col-span-2">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <table className="w-full text-left text-sm text-gray-600">
@@ -151,9 +193,11 @@ const InventoryPage: React.FC = () => {
 
               <tbody className="divide-y divide-gray-100">
                 {mergedData.map(item => {
-                  // Determine if item should be managed (パン/ケーキのみ在庫管理)
+                  // Logic nghiệp vụ: Chỉ quản lý tồn kho cho Bánh (Food).
+                  // Đồ uống (drink) và Rượu (alcohol) được pha chế tại chỗ hoặc quản lý riêng nên không hiện ở đây.
                   const isStockManaged = item.type !== 'drink' && item.type !== 'alcohol';
 
+                  // Cờ báo động: Tồn kho thực tế <= Mức tối thiểu
                   const isLow = isStockManaged && item.stock <= item.threshold;
 
                   return (
@@ -205,12 +249,13 @@ const InventoryPage: React.FC = () => {
                         {isStockManaged && item.lastUpdated ? new Date(item.lastUpdated).toLocaleString('ja-JP') : '-'}
                       </td>
 
-                      {/* ===== NEW: 工場依頼列 ===== */}
+                      {/* ===== Cột: Nút Yêu cầu Nhà máy ===== */}
                       <td className="px-6 py-4">
                         {!isStockManaged ? (
                           <span className="text-xs text-gray-400 italic">対象外</span>
                         ) : (
                           <button
+                            // Chỉ cho phép yêu cầu khi tồn kho thấp (isLow)
                             disabled={!isLow}
                             onClick={() => openRequestModal(item.product_id, item.name, item.stock, item.threshold)}
                             className={[
@@ -262,7 +307,7 @@ const InventoryPage: React.FC = () => {
           </div>
         </div>
 
-        {/* ===== 右: 工場依頼一覧 ===== */}
+        {/* ===== Cột Phải: Danh sách Lịch sử Yêu cầu (Request List) ===== */}
         <div className="xl:col-span-1">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
@@ -304,6 +349,7 @@ const InventoryPage: React.FC = () => {
                         )}
                       </div>
 
+                      {/* Badge hiển thị trạng thái */}
                       <div className="text-xs">
                         {req.status === 'PENDING' && (
                           <span className="px-2 py-1 rounded bg-orange-50 text-orange-700 border border-orange-200">
@@ -323,6 +369,7 @@ const InventoryPage: React.FC = () => {
                       </div>
                     </div>
 
+                    {/* Action Buttons: Chỉ hiện khi trạng thái là PENDING */}
                     {req.status === 'PENDING' && (
                       <div className="flex gap-2 mt-3">
                         <button
@@ -348,7 +395,7 @@ const InventoryPage: React.FC = () => {
         </div>
       </div>
 
-      {/* ===== NEW: 工場依頼モーダル ===== */}
+      {/* ===== Modal Tạo Yêu cầu Mới ===== */}
       {requestModalOpen && requestTarget && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
           <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">

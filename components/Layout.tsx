@@ -12,8 +12,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { currentTime, setSimulationTime, resetSimulation, isSimulationMode } = useStore();
 
   const navItems = [
-    { path: '/', icon: ShoppingCart, label: '注文 (POS)' },
     { path: '/dashboard', icon: LayoutDashboard, label: 'ダッシュボード' },
+    { path: '/', icon: ShoppingCart, label: '注文' },
     { path: '/inventory', icon: Package, label: '在庫管理' },
     { path: '/history', icon: History, label: '注文履歴' },
   ];
@@ -34,78 +34,78 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
     <div className="flex h-screen w-full bg-gray-50">
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col shadow-sm z-10">
+      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col shadow-sm z-20">
         <div className="h-16 flex items-center px-6 border-b border-gray-100">
           <Croissant className="h-8 w-8 text-brand-600 mr-2" />
           <h1 className="font-bold text-xl text-gray-800 tracking-tight">FRESH BAKERY</h1>
         </div>
-        
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+
+        <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1">
           {navItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
               className={({ isActive }) => `
-                flex items-center px-4 py-3 rounded-xl transition-all duration-200
+                flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200
                 ${isActive 
                   ? 'bg-brand-50 text-brand-700 shadow-sm border border-brand-100' 
-                  : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'}
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}
               `}
             >
-              <item.icon className="h-5 w-5 mr-3" />
-              <span className="font-medium">{item.label}</span>
+              <item.icon className={`h-5 w-5 mr-3 ${location.pathname === item.path ? 'text-brand-600' : 'text-gray-400'}`} />
+              {item.label}
             </NavLink>
           ))}
         </nav>
-
-        {/* Time Simulation Widget */}
-        <div className="p-5 border-t border-gray-100 bg-gray-50/50">
-          <div className="flex items-center mb-3">
-            <Clock className="w-4 h-4 text-brand-500 mr-2" />
-            <h3 className="font-bold text-gray-600 text-sm">システム時間</h3>
-            {isSimulationMode && (
-              <button onClick={resetSimulation} title="リセット" className="ml-auto p-1 bg-gray-200 rounded-full hover:bg-gray-300 transition-colors">
-                <RotateCcw className="w-3 h-3 text-gray-600" />
-              </button>
-            )}
-          </div>
-          
-          <div className="bg-white rounded-xl border border-gray-200 p-3 shadow-sm mb-4 flex justify-center items-center">
-             <span className="text-4xl font-mono font-bold text-gray-800 tracking-wider">
+        
+        {/* Time Simulation Widget at Bottom */}
+        <div className="p-4 border-t border-gray-100 bg-gray-50/50">
+          <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center text-xs font-bold text-gray-500 uppercase tracking-wider">
+                <Clock className="w-3 h-3 mr-1.5" />
+                システム時間
+              </div>
+               {isSimulationMode && (
+                <button onClick={resetSimulation} title="リセット" className="p-1 hover:bg-gray-100 rounded-full transition-colors">
+                  <RotateCcw className="w-3 h-3 text-gray-400" />
+                </button>
+              )}
+            </div>
+            
+            <div className="text-center py-2 mb-3 bg-gray-50 rounded border border-gray-100 font-mono text-2xl font-bold text-gray-800">
                {formattedTime}
-             </span>
-          </div>
+            </div>
 
-          <div className="mb-2">
-            <label className="text-xs font-bold text-gray-400 block mb-1">時間シミュレーション</label>
-            <div className="relative">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-gray-400 block">時間シミュレーション</label>
               <input 
                 type="time" 
                 value={inputValue}
                 onChange={handleTimeChange}
-                className="w-full bg-white border border-gray-300 text-gray-700 text-sm rounded-lg focus:ring-brand-500 focus:border-brand-500 block p-2.5"
+                className="w-full bg-white border border-gray-300 text-gray-700 text-xs rounded p-2 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 block"
               />
-              <Clock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
             </div>
           </div>
-
-          <div className="space-y-1 mt-3">
-             <div className="flex items-center text-xs text-gray-500">
+           <div className="mt-3 space-y-1 px-1">
+             <div className="flex items-center text-[10px] text-gray-400">
                 <div className="w-2 h-2 rounded-full bg-purple-400 mr-2"></div>
-                <span>17:00未満: アルコール不可</span>
+                17:00未満: アルコール不可
              </div>
-             <div className="flex items-center text-xs text-gray-500">
+             <div className="flex items-center text-[10px] text-gray-400">
                 <div className="w-2 h-2 rounded-full bg-blue-400 mr-2"></div>
-                <span>20:30以降: イートイン不可</span>
+                20:30以降: イートイン不可
              </div>
           </div>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-hidden relative">
-         {children}
-      </main>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+         <main className="flex-1 overflow-hidden relative">
+           {children}
+        </main>
+      </div>
     </div>
   );
 };
