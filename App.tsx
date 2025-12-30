@@ -1,11 +1,11 @@
 import React from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { StoreProvider } from './store/StoreContext';
-import Layout from './components/Layout';
-import POS from './pages/POS';
-import Dashboard from './pages/Dashboard';
-import InventoryPage from './pages/Inventory';
-import HistoryPage from './pages/History';
+import { StoreProvider } from './src/store/StoreContext';
+import Layout from '@/src/components/Layout';
+import POS from '@/src/pages/POS';
+import Dashboard from '@/src/pages/Dashboard';
+import InventoryPage from '@/src/pages/Inventory';
+import HistoryPage from '@/src/pages/History';
 
 function App() {
   return (

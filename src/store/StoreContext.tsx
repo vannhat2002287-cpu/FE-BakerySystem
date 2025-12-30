@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Product, Inventory, Order, CartItem, OrderType, PaymentMethod } from '../types';
-import { INITIAL_PRODUCTS, INITIAL_INVENTORY } from '../data';
+import { Product, Inventory, Order, CartItem, OrderType, PaymentMethod } from '../../types';
 
 interface StoreContextType {
   products: Product[];
@@ -23,8 +22,8 @@ interface StoreContextType {
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [products] = useState<Product[]>(INITIAL_PRODUCTS);
-  const [inventory, setInventory] = useState<Inventory[]>(INITIAL_INVENTORY);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [inventory, setInventory] = useState<Inventory[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
 
