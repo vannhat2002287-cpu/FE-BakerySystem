@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-50: #fff8f1;
+  --color-brand-100: #ffefdb;
+  --color-brand-200: #ffdbaf;
+  --color-brand-300: #ffc17d;
+  --color-brand-400: #fe9e48;
+  --color-brand-500: #f97c16;
+  --color-brand-600: #ea5f0c;
+  --color-brand-700: #c2460c;
+  --color-brand-800: #9a3812;
+  --color-brand-900: #7c3013;
+}
+
+/* Custom scrollbar for POS feel */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
