@@ -330,9 +330,7 @@ const InventoryPage: React.FC = () => {
                       </td>
 
                       <td className="px-6 py-4">
-                        {!isStockManaged ? (
-                          <span className="font-mono text-lg text-gray-400">-</span>
-                        ) : editingId === item.product_id ? (
+                        {editingId === item.product_id ? (
                           <div className="flex items-center">
                             <input
                               type="number"
@@ -348,12 +346,10 @@ const InventoryPage: React.FC = () => {
                         )}
                       </td>
 
-                      <td className="px-6 py-4 text-gray-400">
-                        {isStockManaged ? item.threshold : "-"}
-                      </td>
+                      <td className="px-6 py-4 text-gray-400">{item.threshold}</td>
 
                       <td className="px-6 py-4 text-xs text-gray-400">
-                        {isStockManaged && item.lastUpdated
+                        {item.lastUpdated
                           ? new Date(item.lastUpdated).toLocaleString("ja-JP")
                           : "-"}
                       </td>
@@ -391,9 +387,7 @@ const InventoryPage: React.FC = () => {
                       </td>
 
                       <td className="px-6 py-4">
-                        {!isStockManaged ? (
-                          <span className="text-xs text-gray-400 italic">管理対象外</span>
-                        ) : editingId === item.product_id ? (
+                        {editingId === item.product_id ? (
                           <div className="flex space-x-2">
                             <button
                               onClick={() => saveEdit(item.product_id)}
