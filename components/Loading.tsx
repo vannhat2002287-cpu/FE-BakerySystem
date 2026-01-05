@@ -40,24 +40,20 @@ const Loading: React.FC<LoadingProps> = ({
 
   const spinnerElement = (
     <div
-      className={`animate-spin rounded-full mx-auto ${
+      className={`mx-auto animate-spin rounded-full ${
         sizeClass.spinner
       } ${color} ${variant === "spinner" ? "" : "hidden"}`}
     />
   );
 
   const dotsElement = (
-    <div
-      className={`flex space-x-2 justify-center ${
-        variant === "dots" ? "" : "hidden"
-      }`}
-    >
+    <div className={`flex justify-center space-x-2 ${variant === "dots" ? "" : "hidden"}`}>
       {[0, 1, 2].map((i) => (
         <div
           key={i}
           className={`${
             size === "sm" ? "h-2 w-2" : size === "md" ? "h-3 w-3" : "h-4 w-4"
-          } rounded-full bg-brand-600 animate-pulse`}
+          } bg-brand-600 animate-pulse rounded-full`}
           style={{
             animationDelay: `${i * 0.2}s`,
             animationDuration: "1s",
@@ -70,15 +66,13 @@ const Loading: React.FC<LoadingProps> = ({
   const content = (
     <div className={`${className}`}>
       {variant === "spinner" ? spinnerElement : dotsElement}
-      {message && (
-        <p className={`mt-4 text-gray-500 ${textSizeClass}`}>{message}</p>
-      )}
+      {message && <p className={`mt-4 text-gray-500 ${textSizeClass}`}>{message}</p>}
     </div>
   );
 
   if (fullScreen) {
     return (
-      <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm">
         {content}
       </div>
     );

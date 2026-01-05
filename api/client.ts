@@ -1,14 +1,15 @@
 export class ApiError extends Error {
-  constructor(message: string, public status?: number, public response?: any) {
+  constructor(
+    message: string,
+    public status?: number,
+    public response?: any
+  ) {
     super(message);
     this.name = "ApiError";
   }
 }
 
-export async function apiRequest<T>(
-  url: string,
-  options?: RequestInit
-): Promise<T> {
+export async function apiRequest<T>(url: string, options?: RequestInit): Promise<T> {
   try {
     const response = await fetch(url, {
       ...options,
@@ -32,8 +33,6 @@ export async function apiRequest<T>(
     if (error instanceof ApiError) {
       throw error;
     }
-    throw new ApiError(
-      error instanceof Error ? error.message : "Network error occurred"
-    );
+    throw new ApiError(error instanceof Error ? error.message : "Network error occurred");
   }
 }

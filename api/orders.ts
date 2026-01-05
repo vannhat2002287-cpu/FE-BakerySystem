@@ -32,15 +32,11 @@ interface OrderDTO {
   items: OrderItemDTO[];
 }
 
-function mapBackendOrderTypeToFrontend(
-  orderType: "EAT_IN" | "TAKEAWAY"
-): OrderType {
+function mapBackendOrderTypeToFrontend(orderType: "EAT_IN" | "TAKEAWAY"): OrderType {
   return orderType === "EAT_IN" ? "eat-in" : "takeaway";
 }
 
-function mapBackendPaymentMethodToFrontend(
-  paymentMethod: "cash"
-): PaymentMethod {
+function mapBackendPaymentMethodToFrontend(paymentMethod: "cash"): PaymentMethod {
   return "cash";
 }
 
@@ -94,17 +90,9 @@ export async function createOrder(
   paymentReceived: number
 ): Promise<Order> {
   const url = buildApiUrl(API_ENDPOINTS.ORDERS);
-  const requestBody = mapOrderToRequestDTO(
-    items,
-    orderType,
-    paymentMethod,
-    paymentReceived
-  );
+  const requestBody = mapOrderToRequestDTO(items, orderType, paymentMethod, paymentReceived);
 
-  console.log(
-    "Creating order with request body:",
-    JSON.stringify(requestBody, null, 2)
-  );
+  console.log("Creating order with request body:", JSON.stringify(requestBody, null, 2));
 
   const data = await apiRequest<OrderDTO>(url, {
     method: "POST",
@@ -114,10 +102,7 @@ export async function createOrder(
   return mapOrderDTOToOrder(data);
 }
 
-export async function getOrdersByDate(
-  date: string,
-  orderType?: OrderType
-): Promise<Order[]> {
+export async function getOrdersByDate(date: string, orderType?: OrderType): Promise<Order[]> {
   const params: Record<string, string> = { date };
   if (orderType) {
     params.type = mapOrderTypeToBackend(orderType);

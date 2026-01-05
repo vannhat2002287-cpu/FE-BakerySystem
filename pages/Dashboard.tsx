@@ -13,12 +13,7 @@ import {
   Cell,
   Legend,
 } from "recharts";
-import {
-  TrendingUp,
-  ShoppingBag,
-  AlertTriangle,
-  JapaneseYen,
-} from "lucide-react";
+import { TrendingUp, ShoppingBag, AlertTriangle, JapaneseYen } from "lucide-react";
 import { getDashboard, DashboardData } from "@/api/analytics";
 import { ApiError } from "@/api/client";
 import toast from "react-hot-toast";
@@ -26,9 +21,7 @@ import Loading from "@/components/Loading";
 
 const Dashboard: React.FC = () => {
   const { inventory, products } = useStore();
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(
-    null
-  );
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -83,7 +76,7 @@ const Dashboard: React.FC = () => {
   const COLORS = ["#ea5f0c", "#fb923c"];
 
   return (
-    <div className="p-8 h-full overflow-y-auto">
+    <div className="h-full overflow-y-auto p-8">
       <h1 className="text-2xl font-bold text-gray-800">
         ダッシュボード (本日: {new Date().toLocaleDateString("ja-JP")})
       </h1>
@@ -95,67 +88,54 @@ const Dashboard: React.FC = () => {
       ) : (
         <>
           {/* KPI Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center">
-              <div className="p-3 bg-brand-100 rounded-lg text-brand-600 mr-4">
-                <JapaneseYen className="w-8 h-8" />
+          <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+            <div className="flex items-center rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+              <div className="bg-brand-100 text-brand-600 mr-4 rounded-lg p-3">
+                <JapaneseYen className="h-8 w-8" />
               </div>
               <div>
-                <p className="text-sm text-gray-500 font-medium">本日の売上</p>
+                <p className="text-sm font-medium text-gray-500">本日の売上</p>
+                <p className="text-2xl font-bold text-gray-800">¥{dailySales.toLocaleString()}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+              <div className="mr-4 rounded-lg bg-blue-100 p-3 text-blue-600">
+                <ShoppingBag className="h-8 w-8" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-500">注文件数</p>
+                <p className="text-2xl font-bold text-gray-800">{orderCount} 件</p>
+              </div>
+            </div>
+
+            <div className="flex items-center rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+              <div className="mr-4 rounded-lg bg-green-100 p-3 text-green-600">
+                <TrendingUp className="h-8 w-8" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-500">客単価</p>
                 <p className="text-2xl font-bold text-gray-800">
-                  ¥{dailySales.toLocaleString()}
+                  ¥{orderCount > 0 ? Math.floor(dailySales / orderCount).toLocaleString() : 0}
                 </p>
               </div>
             </div>
 
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center">
-              <div className="p-3 bg-blue-100 rounded-lg text-blue-600 mr-4">
-                <ShoppingBag className="w-8 h-8" />
+            <div className="flex items-center rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+              <div className="mr-4 rounded-lg bg-red-100 p-3 text-red-600">
+                <AlertTriangle className="h-8 w-8" />
               </div>
               <div>
-                <p className="text-sm text-gray-500 font-medium">注文件数</p>
-                <p className="text-2xl font-bold text-gray-800">
-                  {orderCount} 件
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center">
-              <div className="p-3 bg-green-100 rounded-lg text-green-600 mr-4">
-                <TrendingUp className="w-8 h-8" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 font-medium">客単価</p>
-                <p className="text-2xl font-bold text-gray-800">
-                  ¥
-                  {orderCount > 0
-                    ? Math.floor(dailySales / orderCount).toLocaleString()
-                    : 0}
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center">
-              <div className="p-3 bg-red-100 rounded-lg text-red-600 mr-4">
-                <AlertTriangle className="w-8 h-8" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 font-medium">
-                  在庫アラート
-                </p>
-                <p className="text-2xl font-bold text-gray-800">
-                  {lowStockCount} 商品
-                </p>
+                <p className="text-sm font-medium text-gray-500">在庫アラート</p>
+                <p className="text-2xl font-bold text-gray-800">{lowStockCount} 商品</p>
               </div>
             </div>
           </div>
 
           {/* Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-            <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h3 className="font-bold text-gray-700 mb-4">
-                時間別売上推移 (24時間)
-              </h3>
+          <div className="mb-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
+            <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm lg:col-span-2">
+              <h3 className="mb-4 font-bold text-gray-700">時間別売上推移 (24時間)</h3>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={hourlyData}>
@@ -174,10 +154,7 @@ const Dashboard: React.FC = () => {
                       tickFormatter={(value) => `¥${value}`}
                     />
                     <Tooltip
-                      formatter={(value: number) => [
-                        `¥${value.toLocaleString()}`,
-                        "売上",
-                      ]}
+                      formatter={(value: number) => [`¥${value.toLocaleString()}`, "売上"]}
                       contentStyle={{
                         borderRadius: "8px",
                         border: "none",
@@ -190,8 +167,8 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h3 className="font-bold text-gray-700 mb-4">売上構成比</h3>
+            <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+              <h3 className="mb-4 font-bold text-gray-700">売上構成比</h3>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -207,17 +184,10 @@ const Dashboard: React.FC = () => {
                       animationDuration={600}
                     >
                       {typeData.map((entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={COLORS[index % COLORS.length]}
-                        />
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip
-                      formatter={(value: number) =>
-                        `¥${value.toLocaleString()}`
-                      }
-                    />
+                    <Tooltip formatter={(value: number) => `¥${value.toLocaleString()}`} />
                     <Legend verticalAlign="bottom" height={36} />
                   </PieChart>
                 </ResponsiveContainer>
@@ -226,11 +196,9 @@ const Dashboard: React.FC = () => {
           </div>
 
           {/* Popular Products Ranking */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
-            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white">
-              <h3 className="font-bold text-gray-700 text-lg">
-                人気商品ランキング
-              </h3>
+          <div className="mb-8 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-gray-100 bg-white px-6 py-4">
+              <h3 className="text-lg font-bold text-gray-700">人気商品ランキング</h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm text-gray-600">
@@ -244,26 +212,17 @@ const Dashboard: React.FC = () => {
                 <tbody className="divide-y divide-gray-50">
                   {popularProducts.length === 0 ? (
                     <tr>
-                      <td
-                        colSpan={3}
-                        className="px-6 py-8 text-center text-gray-400"
-                      >
+                      <td colSpan={3} className="px-6 py-8 text-center text-gray-400">
                         データがありません
                       </td>
                     </tr>
                   ) : (
                     popularProducts.map((item, index) => (
                       <tr key={item.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-gray-400 font-medium">
-                          #{index + 1}
-                        </td>
-                        <td className="px-6 py-4 font-bold text-gray-800 text-base">
-                          {item.name}
-                        </td>
+                        <td className="px-6 py-4 font-medium text-gray-400">#{index + 1}</td>
+                        <td className="px-6 py-4 text-base font-bold text-gray-800">{item.name}</td>
                         <td className="px-6 py-4 text-right">
-                          <span className="text-brand-600 font-bold text-lg">
-                            {item.count}
-                          </span>
+                          <span className="text-brand-600 text-lg font-bold">{item.count}</span>
                         </td>
                       </tr>
                     ))

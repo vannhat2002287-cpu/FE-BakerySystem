@@ -1,18 +1,5 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  ReactNode,
-} from "react";
-import {
-  Product,
-  Inventory,
-  Order,
-  CartItem,
-  OrderType,
-  PaymentMethod,
-} from "../types";
+import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { Product, Inventory, Order, CartItem, OrderType, PaymentMethod } from "../types";
 import { getProducts } from "../api/products";
 import { getAllInventory } from "../api/inventory";
 import { createOrder } from "../api/orders";
@@ -44,9 +31,7 @@ interface StoreContextType {
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
-export const StoreProvider: React.FC<{ children: ReactNode }> = ({
-  children,
-}) => {
+export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [inventory, setInventory] = useState<Inventory[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -96,9 +81,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({
         if (error instanceof ApiError) {
           toast.error(`Failed to load data: ${error.message}`);
         } else {
-          toast.error(
-            "Failed to connect to server. Please check your connection."
-          );
+          toast.error("Failed to connect to server. Please check your connection.");
         }
       } finally {
         setIsLoading(false);
@@ -116,24 +99,18 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({
 
   const addToCart = (product: Product) => {
     setCart((prev) => {
-      const existing = prev.find(
-        (item) => item.product_id === product.product_id
-      );
+      const existing = prev.find((item) => item.product_id === product.product_id);
       if (existing) {
         // Check inventory limit ONLY if stock is managed
         if (isStockManaged(product)) {
-          const stock = inventory.find(
-            (inv) => inv.product_id === product.product_id
-          );
+          const stock = inventory.find((inv) => inv.product_id === product.product_id);
           if (stock && existing.quantity >= stock.current_quantity) {
             toast.error("在庫不足です (Out of Stock)");
             return prev;
           }
         }
         return prev.map((item) =>
-          item.product_id === product.product_id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
+          item.product_id === product.product_id ? { ...item, quantity: item.quantity + 1 } : item
         );
       }
       return [...prev, { ...product, quantity: 1 }];
@@ -199,12 +176,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({
       }));
 
       // Call API to create order
-      const newOrder = await createOrder(
-        orderItems,
-        orderType,
-        paymentMethod,
-        receivedAmount
-      );
+      const newOrder = await createOrder(orderItems, orderType, paymentMethod, receivedAmount);
 
       // Add order to local state
       setOrders((prev) => [newOrder, ...prev]);

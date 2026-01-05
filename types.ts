@@ -1,4 +1,4 @@
-export type ProductType = 'food' | 'drink' | 'alcohol' | 'merchandise';
+export type ProductType = "food" | "drink" | "alcohol" | "merchandise";
 
 export interface Category {
   category_id: string;
@@ -23,9 +23,9 @@ export interface Inventory {
   last_updated: string;
 }
 
-export type OrderType = 'eat-in' | 'takeaway';
+export type OrderType = "eat-in" | "takeaway";
 // Only Cash is supported now
-export type PaymentMethod = 'cash';
+export type PaymentMethod = "cash";
 
 export interface OrderDetail {
   product_id: string;

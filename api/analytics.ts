@@ -74,9 +74,5 @@ export async function getDashboard(): Promise<DashboardData> {
     console.error("Failed to fetch orders for type breakdown:", error);
   }
 
-  return mapDashboardDTOToDashboardData(
-    analyticsData,
-    eatInSales,
-    takeawaySales
-  );
+  return mapDashboardDTOToDashboardData(analyticsData, eatInSales, takeawaySales);
 }

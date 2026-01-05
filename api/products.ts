@@ -32,9 +32,7 @@ export interface GetProductsParams {
   is_active?: boolean;
 }
 
-export async function getProducts(
-  params?: GetProductsParams
-): Promise<Product[]> {
+export async function getProducts(params?: GetProductsParams): Promise<Product[]> {
   const queryParams: Record<string, string | number | boolean> = {};
 
   if (params?.category_id) {

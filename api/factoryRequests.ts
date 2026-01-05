@@ -32,9 +32,7 @@ export interface FactoryRequest {
   status: FactoryRequestStatus;
 }
 
-function mapFactoryRequestDTOToFactoryRequest(
-  dto: FactoryRequestResponseDTO
-): FactoryRequest {
+function mapFactoryRequestDTOToFactoryRequest(dto: FactoryRequestResponseDTO): FactoryRequest {
   return {
     request_id: String(dto.request_id),
     product_id: String(dto.product_id),
@@ -75,12 +73,7 @@ export async function createFactoryRequest(
   note?: string
 ): Promise<FactoryRequest> {
   const url = buildApiUrl(API_ENDPOINTS.FACTORY_REQUESTS);
-  const requestBody = mapFactoryRequestToDTO(
-    productId,
-    requestQuantity,
-    etaAt,
-    note
-  );
+  const requestBody = mapFactoryRequestToDTO(productId, requestQuantity, etaAt, note);
 
   const data = await apiRequest<FactoryRequestResponseDTO>(url, {
     method: "POST",
@@ -94,12 +87,9 @@ export async function updateFactoryRequestStatus(
   requestId: string,
   status: FactoryRequestStatus
 ): Promise<FactoryRequest> {
-  const url = buildApiUrl(
-    `${API_ENDPOINTS.FACTORY_REQUESTS}/${requestId}/status`,
-    {
-      status,
-    }
-  );
+  const url = buildApiUrl(`${API_ENDPOINTS.FACTORY_REQUESTS}/${requestId}/status`, {
+    status,
+  });
 
   const data = await apiRequest<FactoryRequestResponseDTO>(url, {
     method: "PATCH",

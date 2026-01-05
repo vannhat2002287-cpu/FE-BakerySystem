@@ -1,13 +1,6 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { useStore } from "@/store/StoreContext";
-import {
-  Edit2,
-  Save,
-  X,
-  Factory,
-  PackageCheck,
-  ClipboardList,
-} from "lucide-react";
+import { Edit2, Save, X, Factory, PackageCheck, ClipboardList } from "lucide-react";
 import {
   getAllFactoryRequests,
   createFactoryRequest,
@@ -20,8 +13,7 @@ import toast from "react-hot-toast";
 import Loading from "@/components/Loading";
 
 // Hàm tiện ích: Cộng thêm phút vào thời gian hiện tại (Dùng để tính ETA mặc định)
-const addMinutes = (date: Date, minutes: number) =>
-  new Date(date.getTime() + minutes * 60 * 1000);
+const addMinutes = (date: Date, minutes: number) => new Date(date.getTime() + minutes * 60 * 1000);
 
 /**
  * Component InventoryPage
@@ -41,8 +33,7 @@ const InventoryPage: React.FC = () => {
   // ===== Phần 2: State cho chức năng Yêu cầu Nhà máy (Factory Request) =====
   // factoryRequests: Danh sách các yêu cầu đã tạo (Fetch từ API).
   const [factoryRequests, setFactoryRequests] = useState<FactoryRequest[]>([]);
-  const [isLoadingFactoryRequests, setIsLoadingFactoryRequests] =
-    useState<boolean>(true);
+  const [isLoadingFactoryRequests, setIsLoadingFactoryRequests] = useState<boolean>(true);
   // requestModalOpen: Trạng thái đóng/mở của Modal yêu cầu nhập hàng.
   const [requestModalOpen, setRequestModalOpen] = useState(false);
   // requestTarget: Lưu thông tin sản phẩm đang được chọn để tạo yêu cầu (để hiển thị lên Modal).
@@ -207,13 +198,8 @@ const InventoryPage: React.FC = () => {
   // Hủy yêu cầu: Gọi API để update status thành CANCELLED
   const cancelFactoryRequest = async (request_id: string) => {
     try {
-      const updatedReq = await updateFactoryRequestStatus(
-        request_id,
-        "CANCELLED"
-      );
-      setFactoryRequests((prev) =>
-        prev.map((r) => (r.request_id === request_id ? updatedReq : r))
-      );
+      const updatedReq = await updateFactoryRequestStatus(request_id, "CANCELLED");
+      setFactoryRequests((prev) => prev.map((r) => (r.request_id === request_id ? updatedReq : r)));
       toast.success("Factory request cancelled successfully!");
     } catch (error) {
       console.error("Failed to cancel factory request:", error);
@@ -250,10 +236,7 @@ const InventoryPage: React.FC = () => {
       updateInventory(req.product_id, newStock);
 
       // Update factory request status via API
-      const updatedReq = await updateFactoryRequestStatus(
-        req.request_id,
-        "DELIVERED"
-      );
+      const updatedReq = await updateFactoryRequestStatus(req.request_id, "DELIVERED");
       setFactoryRequests((prev) =>
         prev.map((r) => (r.request_id === req.request_id ? updatedReq : r))
       );
@@ -276,31 +259,30 @@ const InventoryPage: React.FC = () => {
   const formatJa = (iso: string) => new Date(iso).toLocaleString("ja-JP");
 
   return (
-    <div className="p-8 h-full overflow-y-auto">
-      <div className="flex justify-between items-center mb-6">
+    <div className="h-full overflow-y-auto p-8">
+      <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">在庫管理</h1>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="mt-1 text-xs text-gray-500">
             店舗在庫が基準値を下回ったら、工場へ追加焼成を依頼（徒歩約5分で納品）
           </p>
         </div>
 
         {/* Thống kê nhanh số lượng yêu cầu đang chờ */}
         <div className="flex items-center gap-2 text-xs">
-          <span className="inline-flex items-center px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 text-gray-600">
-            <ClipboardList className="w-4 h-4 mr-2" />
-            依頼中:{" "}
-            {factoryRequests.filter((r) => r.status === "PENDING").length}
+          <span className="inline-flex items-center rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-gray-600">
+            <ClipboardList className="mr-2 h-4 w-4" />
+            依頼中: {factoryRequests.filter((r) => r.status === "PENDING").length}
           </span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         {/* ===== Cột Trái: Bảng Tồn kho (Inventory Table) ===== */}
         <div className="xl:col-span-2">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
             <table className="w-full text-left text-sm text-gray-600">
-              <thead className="bg-gray-50 border-b border-gray-200 text-xs uppercase font-semibold text-gray-500">
+              <thead className="border-b border-gray-200 bg-gray-50 text-xs font-semibold text-gray-500 uppercase">
                 <tr>
                   <th className="px-6 py-4">商品名</th>
                   <th className="px-6 py-4">カテゴリー</th>
@@ -316,30 +298,24 @@ const InventoryPage: React.FC = () => {
                 {mergedData.map((item) => {
                   // Logic nghiệp vụ: Chỉ quản lý tồn kho cho Bánh (Food).
                   // Đồ uống (drink) và Rượu (alcohol) được pha chế tại chỗ hoặc quản lý riêng nên không hiện ở đây.
-                  const isStockManaged =
-                    item.type !== "drink" && item.type !== "alcohol";
+                  const isStockManaged = item.type !== "drink" && item.type !== "alcohol";
 
                   // Cờ báo động: Tồn kho thực tế <= Mức tối thiểu
                   const isLow = isStockManaged && item.stock <= item.threshold;
 
                   return (
-                    <tr
-                      key={item.product_id}
-                      className="hover:bg-gray-50 transition-colors"
-                    >
+                    <tr key={item.product_id} className="transition-colors hover:bg-gray-50">
                       <td className="px-6 py-4">
                         <div className="flex items-center">
                           <img
                             src={item.image_url}
                             alt=""
-                            className="w-10 h-10 rounded object-cover mr-3 bg-gray-100"
+                            className="mr-3 h-10 w-10 rounded bg-gray-100 object-cover"
                           />
                           <div>
-                            <div className="font-medium text-gray-800">
-                              {item.name}
-                            </div>
+                            <div className="font-medium text-gray-800">{item.name}</div>
                             {isLow && (
-                              <div className="text-[11px] text-red-600 mt-0.5">
+                              <div className="mt-0.5 text-[11px] text-red-600">
                                 在庫が基準値以下です
                               </div>
                             )}
@@ -348,33 +324,25 @@ const InventoryPage: React.FC = () => {
                       </td>
 
                       <td className="px-6 py-4 text-gray-500">
-                        <span className="px-2 py-1 bg-gray-100 rounded text-xs">
+                        <span className="rounded bg-gray-100 px-2 py-1 text-xs">
                           {item.category_id}
                         </span>
                       </td>
 
                       <td className="px-6 py-4">
                         {!isStockManaged ? (
-                          <span className="text-gray-400 font-mono text-lg">
-                            -
-                          </span>
+                          <span className="font-mono text-lg text-gray-400">-</span>
                         ) : editingId === item.product_id ? (
                           <div className="flex items-center">
                             <input
                               type="number"
                               value={editValue}
-                              onChange={(e) =>
-                                setEditValue(parseInt(e.target.value) || 0)
-                              }
-                              className="w-20 border border-brand-300 rounded p-1 text-center outline-none ring-1 ring-brand-500"
+                              onChange={(e) => setEditValue(parseInt(e.target.value) || 0)}
+                              className="border-brand-300 ring-brand-500 w-20 rounded border p-1 text-center ring-1 outline-none"
                             />
                           </div>
                         ) : (
-                          <span
-                            className={`font-bold ${
-                              isLow ? "text-red-600" : "text-gray-700"
-                            }`}
-                          >
+                          <span className={`font-bold ${isLow ? "text-red-600" : "text-gray-700"}`}>
                             {item.stock}
                           </span>
                         )}
@@ -393,9 +361,7 @@ const InventoryPage: React.FC = () => {
                       {/* ===== Cột: Nút Yêu cầu Nhà máy ===== */}
                       <td className="px-6 py-4">
                         {!isStockManaged ? (
-                          <span className="text-xs text-gray-400 italic">
-                            対象外
-                          </span>
+                          <span className="text-xs text-gray-400 italic">対象外</span>
                         ) : (
                           <button
                             // Chỉ cho phép yêu cầu khi tồn kho thấp (isLow)
@@ -409,18 +375,16 @@ const InventoryPage: React.FC = () => {
                               )
                             }
                             className={[
-                              "inline-flex items-center px-3 py-2 rounded-lg text-xs font-semibold border transition",
+                              "inline-flex items-center rounded-lg border px-3 py-2 text-xs font-semibold transition",
                               isLow
-                                ? "bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100"
-                                : "bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed",
+                                ? "border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100"
+                                : "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400",
                             ].join(" ")}
                             title={
-                              isLow
-                                ? "工場へ追加焼成を依頼"
-                                : "基準値以下になったら依頼できます"
+                              isLow ? "工場へ追加焼成を依頼" : "基準値以下になったら依頼できます"
                             }
                           >
-                            <Factory className="w-4 h-4 mr-2" />
+                            <Factory className="mr-2 h-4 w-4" />
                             工場へ依頼
                           </button>
                         )}
@@ -428,32 +392,28 @@ const InventoryPage: React.FC = () => {
 
                       <td className="px-6 py-4">
                         {!isStockManaged ? (
-                          <span className="text-xs text-gray-400 italic">
-                            管理対象外
-                          </span>
+                          <span className="text-xs text-gray-400 italic">管理対象外</span>
                         ) : editingId === item.product_id ? (
                           <div className="flex space-x-2">
                             <button
                               onClick={() => saveEdit(item.product_id)}
-                              className="p-1 text-green-600 hover:bg-green-50 rounded"
+                              className="rounded p-1 text-green-600 hover:bg-green-50"
                             >
-                              <Save className="w-4 h-4" />
+                              <Save className="h-4 w-4" />
                             </button>
                             <button
                               onClick={() => setEditingId(null)}
-                              className="p-1 text-gray-400 hover:bg-gray-100 rounded"
+                              className="rounded p-1 text-gray-400 hover:bg-gray-100"
                             >
-                              <X className="w-4 h-4" />
+                              <X className="h-4 w-4" />
                             </button>
                           </div>
                         ) : (
                           <button
-                            onClick={() =>
-                              startEdit(item.product_id, item.stock)
-                            }
-                            className="flex items-center text-brand-600 hover:text-brand-800 font-medium text-xs"
+                            onClick={() => startEdit(item.product_id, item.stock)}
+                            className="text-brand-600 hover:text-brand-800 flex items-center text-xs font-medium"
                           >
-                            <Edit2 className="w-3 h-3 mr-1" /> 調整
+                            <Edit2 className="mr-1 h-3 w-3" /> 調整
                           </button>
                         )}
                       </td>
@@ -467,22 +427,22 @@ const InventoryPage: React.FC = () => {
 
         {/* ===== Cột Phải: Danh sách Lịch sử Yêu cầu (Request List) ===== */}
         <div className="xl:col-span-1">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
-              <div className="font-semibold text-gray-800 flex items-center">
-                <ClipboardList className="w-4 h-4 mr-2" />
+          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
+              <div className="flex items-center font-semibold text-gray-800">
+                <ClipboardList className="mr-2 h-4 w-4" />
                 工場依頼一覧
               </div>
               <span className="text-xs text-gray-500">徒歩約5分で納品</span>
             </div>
 
-            <div className="p-4 space-y-3 max-h-[520px] overflow-y-auto">
+            <div className="max-h-[520px] space-y-3 overflow-y-auto p-4">
               {isLoadingFactoryRequests ? (
                 <div className="flex items-center justify-center py-8">
                   <Loading size="sm" message="Loading requests..." />
                 </div>
               ) : factoryRequests.length === 0 ? (
-                <div className="text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
                   依頼はまだありません。
                   <br />
                   在庫が基準値以下になると「工場へ依頼」ボタンが有効になります。
@@ -491,46 +451,44 @@ const InventoryPage: React.FC = () => {
                 factoryRequests.map((req) => (
                   <div
                     key={req.request_id}
-                    className="border border-gray-200 rounded-xl p-4 hover:bg-gray-50 transition"
+                    className="rounded-xl border border-gray-200 p-4 transition hover:bg-gray-50"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="text-sm font-semibold text-gray-800">
                           {req.product_name}
                         </div>
-                        <div className="text-xs text-gray-500 mt-1">
+                        <div className="mt-1 text-xs text-gray-500">
                           数量:{" "}
                           <span className="font-semibold text-gray-700">
                             {req.request_quantity}
                           </span>
                         </div>
-                        <div className="text-xs text-gray-500 mt-1">
+                        <div className="mt-1 text-xs text-gray-500">
                           依頼: {formatJa(req.created_at)}
                         </div>
-                        <div className="text-xs text-gray-500 mt-1">
+                        <div className="mt-1 text-xs text-gray-500">
                           到着予定: {formatJa(req.eta_at)}
                         </div>
                         {req.note && (
-                          <div className="text-xs text-gray-500 mt-2">
-                            メモ: {req.note}
-                          </div>
+                          <div className="mt-2 text-xs text-gray-500">メモ: {req.note}</div>
                         )}
                       </div>
 
                       {/* Badge hiển thị trạng thái */}
                       <div className="text-xs">
                         {req.status === "PENDING" && (
-                          <span className="px-2 py-1 rounded bg-orange-50 text-orange-700 border border-orange-200">
+                          <span className="rounded border border-orange-200 bg-orange-50 px-2 py-1 text-orange-700">
                             依頼中
                           </span>
                         )}
                         {req.status === "DELIVERED" && (
-                          <span className="px-2 py-1 rounded bg-green-50 text-green-700 border border-green-200">
+                          <span className="rounded border border-green-200 bg-green-50 px-2 py-1 text-green-700">
                             納品済
                           </span>
                         )}
                         {req.status === "CANCELLED" && (
-                          <span className="px-2 py-1 rounded bg-gray-100 text-gray-500 border border-gray-200">
+                          <span className="rounded border border-gray-200 bg-gray-100 px-2 py-1 text-gray-500">
                             キャンセル
                           </span>
                         )}
@@ -539,17 +497,17 @@ const InventoryPage: React.FC = () => {
 
                     {/* Action Buttons: Chỉ hiện khi trạng thái là PENDING */}
                     {req.status === "PENDING" && (
-                      <div className="flex gap-2 mt-3">
+                      <div className="mt-3 flex gap-2">
                         <button
                           onClick={() => markDeliveredAndApplyStock(req)}
-                          className="flex-1 inline-flex items-center justify-center px-3 py-2 rounded-lg text-xs font-semibold bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition"
+                          className="inline-flex flex-1 items-center justify-center rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs font-semibold text-green-700 transition hover:bg-green-100"
                         >
-                          <PackageCheck className="w-4 h-4 mr-2" />
+                          <PackageCheck className="mr-2 h-4 w-4" />
                           受領（在庫に反映）
                         </button>
                         <button
                           onClick={() => cancelFactoryRequest(req.request_id)}
-                          className="px-3 py-2 rounded-lg text-xs font-semibold bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 transition"
+                          className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-600 transition hover:bg-gray-100"
                         >
                           キャンセル
                         </button>
@@ -565,57 +523,51 @@ const InventoryPage: React.FC = () => {
 
       {/* ===== Modal Tạo Yêu cầu Mới ===== */}
       {requestModalOpen && requestTarget && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
-          <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
               <div>
-                <div className="text-lg font-bold text-gray-800">
-                  工場へ追加焼成を依頼
-                </div>
-                <div className="text-xs text-gray-500 mt-1">
+                <div className="text-lg font-bold text-gray-800">工場へ追加焼成を依頼</div>
+                <div className="mt-1 text-xs text-gray-500">
                   対象商品:{" "}
-                  <span className="font-semibold text-gray-700">
-                    {requestTarget.product_name}
-                  </span>
+                  <span className="font-semibold text-gray-700">{requestTarget.product_name}</span>
                 </div>
               </div>
               <button
                 onClick={() => setRequestModalOpen(false)}
-                className="p-2 rounded-lg hover:bg-gray-100 text-gray-500"
+                className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
                 aria-label="close"
               >
-                <X className="w-5 h-5" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="space-y-4 p-6">
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
                   <div className="text-xs text-gray-500">現在在庫</div>
-                  <div className="text-xl font-bold text-gray-800 mt-1">
+                  <div className="mt-1 text-xl font-bold text-gray-800">
                     {requestTarget.current_stock}
                   </div>
                 </div>
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
                   <div className="text-xs text-gray-500">基準値 (Min)</div>
-                  <div className="text-xl font-bold text-gray-800 mt-1">
+                  <div className="mt-1 text-xl font-bold text-gray-800">
                     {requestTarget.threshold}
                   </div>
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-gray-600">
-                  依頼数量
-                </label>
+                <label className="text-xs font-semibold text-gray-600">依頼数量</label>
                 <input
                   type="number"
                   min={1}
                   value={requestQty}
                   onChange={(e) => setRequestQty(parseInt(e.target.value) || 1)}
-                  className="mt-1 w-full border border-gray-300 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-brand-500"
+                  className="focus:ring-brand-500 mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 outline-none focus:ring-2"
                 />
-                <div className="text-[11px] text-gray-500 mt-1">
+                <div className="mt-1 text-[11px] text-gray-500">
                   ※ 工場は店舗から徒歩約5分。すぐ焼成・納品を依頼します。
                 </div>
               </div>
@@ -628,34 +580,32 @@ const InventoryPage: React.FC = () => {
                   type="datetime-local"
                   value={requestEta}
                   onChange={(e) => setRequestEta(e.target.value)}
-                  className="mt-1 w-full border border-gray-300 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-brand-500"
+                  className="focus:ring-brand-500 mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 outline-none focus:ring-2"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-gray-600">
-                  メモ（任意）
-                </label>
+                <label className="text-xs font-semibold text-gray-600">メモ（任意）</label>
                 <textarea
                   value={requestNote}
                   onChange={(e) => setRequestNote(e.target.value)}
-                  className="mt-1 w-full border border-gray-300 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-brand-500"
+                  className="focus:ring-brand-500 mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 outline-none focus:ring-2"
                   rows={3}
                   placeholder="例）急ぎ、追加で10個お願いします"
                 />
               </div>
             </div>
 
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-2">
+            <div className="flex justify-end gap-2 border-t border-gray-200 px-6 py-4">
               <button
                 onClick={() => setRequestModalOpen(false)}
-                className="px-4 py-2 rounded-xl text-sm font-semibold bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100"
+                className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100"
               >
                 キャンセル
               </button>
               <button
                 onClick={handleCreateFactoryRequest}
-                className="px-4 py-2 rounded-xl text-sm font-semibold bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100"
+                className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-semibold text-orange-700 hover:bg-orange-100"
               >
                 依頼を送信
               </button>
