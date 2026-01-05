@@ -1,11 +1,13 @@
-import React from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { StoreProvider } from './store/StoreContext';
-import Layout from './components/Layout';
-import POS from './pages/POS';
-import Dashboard from './pages/Dashboard';
-import InventoryPage from './pages/Inventory';
-import HistoryPage from './pages/History';
+import React from "react";
+import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
+import { StoreProvider } from "./store/StoreContext";
+import Layout from "./components/Layout";
+import POS from "./pages/POS";
+import Dashboard from "./pages/Dashboard";
+import InventoryPage from "./pages/Inventory";
+import HistoryPage from "./pages/History";
+import { toastConfig } from "./config/toast";
 
 function App() {
   return (
@@ -21,6 +23,7 @@ function App() {
           </Routes>
         </Layout>
       </HashRouter>
+      <Toaster {...toastConfig} />
     </StoreProvider>
   );
 }
