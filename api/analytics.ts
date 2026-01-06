@@ -60,7 +60,7 @@ export async function getDashboard(): Promise<DashboardData> {
   let takeawaySales = 0;
 
   try {
-    const today = new Date().toISOString().split("T")[0];
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
     const todaysOrders = await getOrdersByDate(today);
 
     todaysOrders.forEach((order) => {

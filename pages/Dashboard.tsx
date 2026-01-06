@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import { TrendingUp, ShoppingBag, AlertTriangle, JapaneseYen } from "lucide-react";
 import { getDashboard, DashboardData } from "@/api/analytics";
+import { getOrdersByDate } from "@/api/orders";
 import { ApiError } from "@/api/client";
 import toast from "react-hot-toast";
 import Loading from "@/components/Loading";
@@ -24,13 +25,68 @@ const Dashboard: React.FC = () => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [todayPopular, setTodayPopular] = useState<
+    Array<{ id: string; name: string; count: number }>
+  >([]);
+  const [todayOrderCount, setTodayOrderCount] = useState<number>(0);
+  const [todayDailySales, setTodayDailySales] = useState<number>(0);
 
+  // Fetch today's orders first (Hanoi timezone) to compute KPIs, then fetch analytics for charts/fallback
   const fetchDashboardData = React.useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const data = await getDashboard();
-      setDashboardData(data);
+
+      try {
+        const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+        const orders = await getOrdersByDate(today);
+        console.debug("[Dashboard] today (Ho_Chi_Minh):", today);
+        console.debug("[Dashboard] orders.length from getOrdersByDate:", orders.length);
+
+        const totalOrders = orders.length;
+        const totalSales = orders.reduce((s, o) => s + (o.total_amount || 0), 0);
+
+        const counts = new Map<string, { name: string; count: number }>();
+        orders.forEach((order) => {
+          order.items.forEach((it) => {
+            const id = it.product_id;
+            const name = it.name || (products.find((p) => p.product_id === id)?.name ?? "");
+            const prev = counts.get(id) ?? { name, count: 0 };
+            prev.count += it.quantity;
+            counts.set(id, prev);
+          });
+        });
+
+        const todayArr = Array.from(counts.entries())
+          .map(([id, v]) => ({
+            id,
+            name: v.name || (products.find((p) => p.product_id === id)?.name ?? ""),
+            count: v.count,
+          }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 5);
+
+        setTodayOrderCount(totalOrders);
+        setTodayDailySales(totalSales);
+        setTodayPopular(todayArr);
+        console.debug(
+          "[Dashboard] computed today totalOrders:",
+          totalOrders,
+          "totalSales:",
+          totalSales
+        );
+      } catch (e) {
+        console.error("Failed to fetch today's orders for dashboard KPIs:", e);
+      }
+
+      // analytics for charts and fallback
+      try {
+        const data = await getDashboard();
+        console.debug("[Dashboard] analytics.dailySales from getDashboard():", data?.dailySales);
+        setDashboardData(data);
+      } catch (e) {
+        console.error("Failed to fetch analytics data:", e);
+      }
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error);
       const errorMessage =
@@ -43,11 +99,13 @@ const Dashboard: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [products]);
 
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
+
+  // Today's popular products are computed inside fetchDashboardData; duplicate effect removed.
 
   const lowStockItems = inventory.filter((i) => {
     const product = products.find((p) => p.product_id === i.product_id);
@@ -59,8 +117,8 @@ const Dashboard: React.FC = () => {
 
   const lowStockCount = dashboardData?.lowStockCount ?? lowStockItems.length;
 
-  const dailySales = dashboardData?.dailySales ?? 0;
-  const orderCount = dashboardData?.orderCount ?? 0;
+  const dailySales = todayDailySales ?? dashboardData?.dailySales ?? 0;
+  const orderCount = todayOrderCount ?? dashboardData?.orderCount ?? 0;
   const hourlyData = dashboardData?.hourlyData ?? [];
   const typeData = useMemo(() => {
     if (dashboardData?.typeData && dashboardData.typeData.length > 0) {
@@ -71,14 +129,17 @@ const Dashboard: React.FC = () => {
       { name: "持ち帰り (Takeaway)", value: 0 },
     ];
   }, [dashboardData?.typeData]);
-  const popularProducts = dashboardData?.popularProducts ?? [];
+  const popularProducts = (
+    todayPopular.length > 0 ? todayPopular : (dashboardData?.popularProducts ?? [])
+  ).slice(0, 5);
 
   const COLORS = ["#ea5f0c", "#fb923c"];
 
   return (
     <div className="h-full overflow-y-auto p-8">
       <h1 className="text-2xl font-bold text-gray-800">
-        ダッシュボード (本日: {new Date().toLocaleDateString("ja-JP")})
+        ダッシュボード (本日:{" "}
+        {new Date().toLocaleDateString("ja-JP", { timeZone: "Asia/Ho_Chi_Minh" })})
       </h1>
 
       {isLoading ? (

@@ -9,8 +9,8 @@ const HistoryPage: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [selectedDate, setSelectedDate] = useState<string>(() => {
-    const today = new Date();
-    return today.toISOString().split("T")[0];
+    // Default to today's date in Asia/Ho_Chi_Minh timezone (format YYYY-MM-DD)
+    return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
   });
   const [activeTab, setActiveTab] = useState<"daily" | "product">("daily");
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
@@ -31,15 +31,13 @@ const HistoryPage: React.FC = () => {
     >();
 
     orders.forEach((order) => {
-      // Parse order_time properly, handling timezone issues
-      // Backend returns ISO string, parse it correctly
+      // Parse order_time and get date string in Asia/Ho_Chi_Minh to group per-day
       const orderDate = new Date(order.order_time);
-      // Use toLocaleDateString with consistent locale to avoid timezone issues
-      const dateStr = orderDate.toLocaleDateString("ja-JP", {
+      const dateStr = orderDate.toLocaleDateString("en-CA", {
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
-        timeZone: "Asia/Tokyo", // Use consistent timezone
+        timeZone: "Asia/Ho_Chi_Minh",
       });
 
       if (!map.has(dateStr)) {
@@ -96,7 +94,12 @@ const HistoryPage: React.FC = () => {
       try {
         setIsLoading(true);
         const ordersData = await getOrdersByDate(selectedDate);
-        setOrders(ordersData);
+        // Normalize: only keep orders whose date (in Asia/Tokyo) equals selectedDate
+        const toDateKey = (iso: string) =>
+          new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+
+        const filtered = ordersData.filter((o) => toDateKey(o.order_time) === selectedDate);
+        setOrders(filtered);
       } catch (error) {
         console.error("Failed to fetch orders:", error);
         if (error instanceof ApiError) {
@@ -201,7 +204,7 @@ const HistoryPage: React.FC = () => {
 
                 {/* Order List for that day */}
                 <div className="divide-y divide-gray-100">
-                  {day.orders.map((order: any) => (
+                  {day.orders.map((order: any, orderIndex: number) => (
                     <div key={order.order_id}>
                       <div
                         onClick={() => toggleOrderExpand(order.order_id)}
@@ -212,6 +215,7 @@ const HistoryPage: React.FC = () => {
                             {new Date(order.order_time).toLocaleTimeString([], {
                               hour: "2-digit",
                               minute: "2-digit",
+                              timeZone: "Asia/Ho_Chi_Minh",
                             })}
                           </span>
                           <span
@@ -224,7 +228,7 @@ const HistoryPage: React.FC = () => {
                             {order.order_type === "eat-in" ? "店内" : "持帰"}
                           </span>
                           <span className="text-sm font-medium text-gray-700">
-                            {order.order_id}
+                            #{orderIndex + 1}
                           </span>
                         </div>
                         <div className="flex items-center space-x-4">

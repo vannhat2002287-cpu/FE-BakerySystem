@@ -39,9 +39,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const formattedTime = currentTime.toLocaleTimeString("ja-JP", {
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "Asia/Ho_Chi_Minh",
   });
-  // For input value (HH:MM)
-  const inputValue = `${currentTime.getHours().toString().padStart(2, "0")}:${currentTime.getMinutes().toString().padStart(2, "0")}`;
+  // For input value (HH:MM) in Ho_Chi_Minh timezone
+  const hhmm = currentTime
+    .toLocaleTimeString("en-GB", {
+      hour12: false,
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "Asia/Ho_Chi_Minh",
+    })
+    .split(":");
+  const inputValue = `${hhmm[0]}:${hhmm[1]}`;
 
   return (
     <div className="flex h-screen w-full bg-gray-50">

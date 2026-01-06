@@ -11,6 +11,8 @@ import { adjustInventory } from "@/api/inventory";
 import { ApiError } from "@/api/client";
 import toast from "react-hot-toast";
 import Loading from "@/components/Loading";
+import { getCategories } from "@/api/categories";
+import type { Category } from "@/types";
 
 // Hàm tiện ích: Cộng thêm phút vào thời gian hiện tại (Dùng để tính ETA mặc định)
 const addMinutes = (date: Date, minutes: number) => new Date(date.getTime() + minutes * 60 * 1000);
@@ -23,6 +25,30 @@ const addMinutes = (date: Date, minutes: number) => new Date(date.getTime() + mi
 const InventoryPage: React.FC = () => {
   // Lấy dữ liệu và hàm cập nhật từ Global Store
   const { products, inventory, updateInventory } = useStore();
+
+  // Categories (for display name lookup)
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchCats = async () => {
+      try {
+        const data = await getCategories();
+        if (mounted) setCategories(data);
+      } catch (e) {
+        console.error("Failed to load categories:", e);
+      }
+    };
+    fetchCats();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const categoryMap = useMemo(
+    () => Object.fromEntries(categories.map((c) => [c.category_id, c.name])),
+    [categories]
+  );
 
   // ===== Phần 1: State cho chức năng chỉnh sửa tồn kho thủ công (Inline Edit) =====
   // editingId: Lưu ID sản phẩm đang được chỉnh sửa. Nếu null nghĩa là không có dòng nào đang sửa.
@@ -255,8 +281,9 @@ const InventoryPage: React.FC = () => {
     }
   };
 
-  // Hàm format ngày tháng sang chuẩn Nhật Bản để hiển thị giao diện
-  const formatJa = (iso: string) => new Date(iso).toLocaleString("ja-JP");
+  // Hàm format ngày tháng sang chuẩn giờ VietNam để hiển thị giao diện
+  const formatJa = (iso: string) =>
+    new Date(iso).toLocaleString("ja-JP", { timeZone: "Asia/Ho_Chi_Minh" });
 
   return (
     <div className="h-full overflow-y-auto p-8">
@@ -325,7 +352,7 @@ const InventoryPage: React.FC = () => {
 
                       <td className="px-6 py-4 text-gray-500">
                         <span className="rounded bg-gray-100 px-2 py-1 text-xs">
-                          {item.category_id}
+                          {categoryMap[item.category_id] ?? item.category_id ?? "-"}
                         </span>
                       </td>
 
