@@ -107,22 +107,22 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
             <div className="space-y-2">
               <label className="block text-[10px] font-bold text-gray-400">
-                時間シミュレーション
+                {/* 時間シミュレーション */}
               </label>
-              <input
+              {/* <input
                 type="time"
                 value={inputValue}
                 onChange={handleTimeChange}
                 className="focus:ring-brand-500 focus:border-brand-500 block w-full rounded border border-gray-300 bg-white p-2 text-xs text-gray-700 focus:ring-1"
-              />
+              /> */}
             </div>
           </div>
           <div className="mt-3 space-y-1 px-1">
-            <div className="flex items-center text-[10px] text-gray-400">
+            <div className="flex items-center text-[12px] text-gray-400">
               <div className="mr-2 h-2 w-2 rounded-full bg-purple-400"></div>
               17:00未満: アルコール不可
             </div>
-            <div className="flex items-center text-[10px] text-gray-400">
+            <div className="flex items-center text-[12px] text-gray-400">
               <div className="mr-2 h-2 w-2 rounded-full bg-blue-400"></div>
               20:30以降: イートイン不可
             </div>

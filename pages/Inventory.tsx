@@ -206,7 +206,7 @@ const InventoryPage: React.FC = () => {
       setFactoryRequests((prev) => [newReq, ...prev]); // Thêm vào đầu danh sách
       setRequestModalOpen(false);
       setRequestTarget(null);
-      toast.success("Factory request created successfully!");
+      toast.success("工場への依頼を作成しました");
     } catch (error) {
       console.error("Failed to create factory request:", error);
       if (error instanceof ApiError) {
@@ -313,8 +313,7 @@ const InventoryPage: React.FC = () => {
                 <tr>
                   <th className="px-6 py-4">商品名</th>
                   <th className="px-6 py-4">カテゴリー</th>
-                  <th className="px-6 py-4">現在在庫</th>
-                  <th className="px-6 py-4">基準値 (Min)</th>
+                  <th className="px-6 py-4">在庫</th>
                   <th className="px-6 py-4">最終更新</th>
                   <th className="px-6 py-4">工場依頼</th>
                   <th className="px-6 py-4">操作</th>
@@ -341,11 +340,6 @@ const InventoryPage: React.FC = () => {
                           />
                           <div>
                             <div className="font-medium text-gray-800">{item.name}</div>
-                            {isLow && (
-                              <div className="mt-0.5 text-[11px] text-red-600">
-                                在庫が基準値以下です
-                              </div>
-                            )}
                           </div>
                         </div>
                       </td>
@@ -373,16 +367,20 @@ const InventoryPage: React.FC = () => {
                         )}
                       </td>
 
-                      <td className="px-6 py-4 text-gray-400">{item.threshold}</td>
-
                       <td className="px-6 py-4 text-xs text-gray-400">
                         {item.lastUpdated
-                          ? new Date(item.lastUpdated).toLocaleString("ja-JP")
+                          ? new Date(item.lastUpdated).toLocaleString("ja-JP", {
+                              year: "numeric",
+                              month: "2-digit",
+                              day: "2-digit",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
                           : "-"}
                       </td>
 
                       {/* ===== Cột: Nút Yêu cầu Nhà máy ===== */}
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 whitespace-nowrap">
                         {!isStockManaged ? (
                           <span className="text-xs text-gray-400 italic">対象外</span>
                         ) : (
@@ -408,12 +406,12 @@ const InventoryPage: React.FC = () => {
                             }
                           >
                             <Factory className="mr-2 h-4 w-4" />
-                            工場へ依頼
+                            依頼
                           </button>
                         )}
                       </td>
 
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 whitespace-nowrap">
                         {editingId === item.product_id ? (
                           <div className="flex space-x-2">
                             <button

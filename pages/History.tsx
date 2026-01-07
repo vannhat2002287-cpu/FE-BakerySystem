@@ -259,9 +259,9 @@ const HistoryPage: React.FC = () => {
                             ))}
                           </ul>
                           <div className="flex items-center justify-between border-t border-gray-200 pt-2">
-                            <span className="text-xs text-gray-500">支払方法: 現金</span>
+                            {/* <span className="text-xs text-gray-500">支払方法: 現金</span> */}
                             <button className="text-brand-600 hover:text-brand-800 border-brand-200 flex items-center rounded border bg-white px-3 py-1 text-xs font-bold shadow-sm">
-                              <Printer className="mr-1 h-3 w-3" /> 領収書印刷
+                              {/* <Printer className="mr-1 h-3 w-3" /> 領収書印刷 */}
                             </button>
                           </div>
                         </div>

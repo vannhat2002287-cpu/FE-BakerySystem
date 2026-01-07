@@ -59,7 +59,7 @@ function mapOrderToRequestDTO(
     paymentMethod: mapPaymentMethodToBackend(paymentMethod),
     paymentReceived,
     items: items.map((item) => ({
-      productId: parseInt(item.product_id),
+      productId: Number.parseInt(item.product_id),
       quantity: item.quantity,
     })),
   };
