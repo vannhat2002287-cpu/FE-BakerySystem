@@ -4,13 +4,21 @@ import { getOrdersByDate } from "@/api/orders";
 import { Order } from "@/types";
 import { ApiError } from "@/api/client";
 import Loading from "@/components/Loading";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const SERVER_ZONE = "Asia/Ho_Chi_Minh";
 
 const HistoryPage: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     // Default to today's date in Asia/Ho_Chi_Minh timezone (format YYYY-MM-DD)
-    return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+    return dayjs().tz(SERVER_ZONE).format("YYYY-MM-DD");
   });
   const [activeTab, setActiveTab] = useState<"daily" | "product">("daily");
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
@@ -32,13 +40,7 @@ const HistoryPage: React.FC = () => {
 
     orders.forEach((order) => {
       // Parse order_time and get date string in Asia/Ho_Chi_Minh to group per-day
-      const orderDate = new Date(order.order_time);
-      const dateStr = orderDate.toLocaleDateString("en-CA", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        timeZone: "Asia/Ho_Chi_Minh",
-      });
+      const dateStr = dayjs.tz(order.order_time, SERVER_ZONE).format("YYYY-MM-DD");
 
       if (!map.has(dateStr)) {
         map.set(dateStr, {
@@ -94,9 +96,8 @@ const HistoryPage: React.FC = () => {
       try {
         setIsLoading(true);
         const ordersData = await getOrdersByDate(selectedDate);
-        // Normalize: only keep orders whose date (in Asia/Tokyo) equals selectedDate
-        const toDateKey = (iso: string) =>
-          new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+        // Normalize: only keep orders whose date in SERVER_ZONE equals selectedDate
+        const toDateKey = (iso: string) => dayjs.tz(iso, SERVER_ZONE).format("YYYY-MM-DD");
 
         const filtered = ordersData.filter((o) => toDateKey(o.order_time) === selectedDate);
         setOrders(filtered);
@@ -212,11 +213,7 @@ const HistoryPage: React.FC = () => {
                       >
                         <div className="flex items-center space-x-4">
                           <span className="font-mono text-sm text-gray-400">
-                            {new Date(order.order_time).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                              timeZone: "Asia/Ho_Chi_Minh",
-                            })}
+                            {dayjs.tz(order.order_time, SERVER_ZONE).format("HH:mm")}
                           </span>
                           <span
                             className={`rounded border px-2 py-0.5 text-xs ${
@@ -258,12 +255,6 @@ const HistoryPage: React.FC = () => {
                               </li>
                             ))}
                           </ul>
-                          <div className="flex items-center justify-between border-t border-gray-200 pt-2">
-                            {/* <span className="text-xs text-gray-500">支払方法: 現金</span> */}
-                            <button className="text-brand-600 hover:text-brand-800 border-brand-200 flex items-center rounded border bg-white px-3 py-1 text-xs font-bold shadow-sm">
-                              {/* <Printer className="mr-1 h-3 w-3" /> 領収書印刷 */}
-                            </button>
-                          </div>
                         </div>
                       )}
                     </div>

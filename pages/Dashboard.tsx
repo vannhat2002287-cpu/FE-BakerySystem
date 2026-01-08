@@ -91,8 +91,8 @@ const Dashboard: React.FC = () => {
       console.error("Failed to fetch dashboard data:", error);
       const errorMessage =
         error instanceof ApiError
-          ? `Failed to load dashboard data: ${error.message}`
-          : "Failed to connect to server. Please check your connection.";
+          ? `ダッシュボードデータの読み込みに失敗しました: ${error.message}`
+          : "サーバーに接続できません。接続を確認してください。";
       setError(errorMessage);
       toast.error(errorMessage);
       setDashboardData(null);

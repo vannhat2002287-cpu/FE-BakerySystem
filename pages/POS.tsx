@@ -90,14 +90,11 @@ const POS: React.FC = () => {
       return;
     }
 
-    // Kiểm tra kho hàng chỉ cho thực phẩm/hàng hóa (không phải đồ uống hoặc rượu)
-    const isStockManaged = product.type !== "drink" && product.type !== "alcohol";
-    if (isStockManaged) {
-      const inv = inventory.find((i) => i.product_id === product.product_id); // Tìm kho của sản phẩm
-      if (!inv || inv.current_quantity <= 0) {
-        toast.error("在庫切れです (Out of Stock)"); // Lỗi hết hàng
-        return;
-      }
+    // Kiểm tra kho hàng nếu có bản ghi tồn kho cho sản phẩm (áp dụng với cả drink/alcohol khi có inventory)
+    const inv = inventory.find((i) => i.product_id === product.product_id);
+    if (inv && inv.current_quantity <= 0) {
+      toast.error("在庫切れです。"); // Lỗi hết hàng
+      return;
     }
     addToCart(product); // Thêm vào giỏ
   };
@@ -112,7 +109,7 @@ const POS: React.FC = () => {
       const success = await placeOrder(orderType, paymentMethod, received);
       if (success) {
         setIsPaymentModalOpen(false); // Đóng modal
-        toast.success("会計が完了しました。"); // Thông báo thành công
+        // 注文作成の成功メッセージは StoreContext 側で表示します。
       }
     } catch (error: any) {
       // Hiển thị lỗi từ server để debug
@@ -204,16 +201,16 @@ const POS: React.FC = () => {
               {/* Grid responsive */}
               {filteredProducts.map((product) => {
                 // Tính kho hàng và trạng thái sản phẩm
-                const stock =
-                  inventory.find((i) => i.product_id === product.product_id)?.current_quantity || 0; // Số lượng kho
-                const isStockManaged = product.type !== "drink" && product.type !== "alcohol"; // Có quản lý kho không
+                const invEntry = inventory.find((i) => i.product_id === product.product_id);
+                const hasInventory = !!invEntry;
+                const stock = invEntry?.current_quantity ?? 0; // Số lượng kho (0 nếu không có bản ghi)
                 // Sửa logic isAlcoholic để nhất quán với handleProductClick
                 const isAlcoholic =
                   product.category_id === "c5" ||
                   product.type === "alcohol" ||
                   product.is_alcoholic === true ||
                   String(product.is_alcoholic) === "true"; // Là rượu không
-                const isOutOfStock = isStockManaged && stock <= 0; // Hết hàng không
+                const isOutOfStock = hasInventory && stock <= 0; // Hết hàng chỉ khi có bản ghi tồn kho và =0
                 const isAlcoholRestricted = isAlcoholic && !isAlcoholAllowed; // Bị hạn chế bán rượu không
 
                 return (
@@ -234,16 +231,18 @@ const POS: React.FC = () => {
                         alt={product.name}
                         className="h-full w-full object-cover"
                       />
-                      {/* Hiển thị kho nếu có */}
-                      {isStockManaged && stock > 0 && (
+                      {/* Hiển thị kho nếu tồn kho có bản ghi (áp dụng cho cả drink/alcohol khi có inventory) */}
+                      {hasInventory && (
                         <span
                           className={`absolute top-2 right-2 z-10 rounded-full px-2 py-1 text-xs font-bold shadow-sm ${
-                            stock <= 5
-                              ? "bg-red-500 text-white" // Màu đỏ nếu ít hàng
-                              : "border border-gray-200 bg-white/80 text-gray-800 backdrop-blur-sm"
+                            stock <= 0
+                              ? "bg-gray-300 text-gray-700"
+                              : stock <= 5
+                                ? "bg-red-500 text-white"
+                                : "border border-gray-200 bg-white/80 text-gray-800 backdrop-blur-sm"
                           }`}
                         >
-                          {stock <= 5 ? `残り ${stock}` : `在庫: ${stock}`} {/* Số lượng kho */}
+                          {stock <= 0 ? `在庫: 0` : stock <= 5 ? `残り ${stock}` : `在庫: ${stock}`}
                         </span>
                       )}
                       {/* Overlay nếu bị hạn chế bán rượu */}

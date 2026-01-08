@@ -136,9 +136,9 @@ const InventoryPage: React.FC = () => {
           typeof error.response === "string"
             ? error.response
             : error.response?.message || error.message;
-        toast.error(`Failed to update inventory: ${errorMessage}`);
+        toast.error(`在庫の更新に失敗しました: ${errorMessage}`);
       } else {
-        toast.error("Failed to connect to server. Please try again.");
+        toast.error("サーバーに接続できません。再度お試しください。");
       }
     }
   };
@@ -174,6 +174,20 @@ const InventoryPage: React.FC = () => {
   // Tạo yêu cầu mới: Gọi API để tạo factory request
   const handleCreateFactoryRequest = async () => {
     if (!requestTarget) return;
+
+    // Prevent duplicate active requests for the same product
+    const hasActive = factoryRequests.some(
+      (r) =>
+        r.product_id === requestTarget.product_id &&
+        r.status !== "CANCELLED" &&
+        r.status !== "DELIVERED"
+    );
+    if (hasActive) {
+      toast.error(
+        "同じ商品への依頼が既に存在します。キャンセルまたは納品されるまで新しい依頼は作成できません。"
+      );
+      return;
+    }
 
     try {
       const qty = Number.isFinite(requestQty) ? Math.max(1, requestQty) : 1;
@@ -214,9 +228,9 @@ const InventoryPage: React.FC = () => {
           typeof error.response === "string"
             ? error.response
             : error.response?.message || error.message;
-        toast.error(`Failed to create factory request: ${errorMessage}`);
+        toast.error(`工場依頼の作成に失敗しました: ${errorMessage}`);
       } else {
-        toast.error("Failed to connect to server. Please try again.");
+        toast.error("サーバーに接続できません。再度お試しください。");
       }
     }
   };
@@ -226,7 +240,7 @@ const InventoryPage: React.FC = () => {
     try {
       const updatedReq = await updateFactoryRequestStatus(request_id, "CANCELLED");
       setFactoryRequests((prev) => prev.map((r) => (r.request_id === request_id ? updatedReq : r)));
-      toast.success("Factory request cancelled successfully!");
+      toast.success("工場への依頼をキャンセルしました。");
     } catch (error) {
       console.error("Failed to cancel factory request:", error);
       if (error instanceof ApiError) {
@@ -234,9 +248,9 @@ const InventoryPage: React.FC = () => {
           typeof error.response === "string"
             ? error.response
             : error.response?.message || error.message;
-        toast.error(`Failed to cancel factory request: ${errorMessage}`);
+        toast.error(`工場依頼のキャンセルに失敗しました: ${errorMessage}`);
       } else {
-        toast.error("Failed to connect to server. Please try again.");
+        toast.error("サーバーに接続できません。再度お試しください。");
       }
     }
   };
@@ -266,7 +280,7 @@ const InventoryPage: React.FC = () => {
       setFactoryRequests((prev) =>
         prev.map((r) => (r.request_id === req.request_id ? updatedReq : r))
       );
-      toast.success("Delivery confirmed and inventory updated!");
+      toast.success("納品を確認し、在庫を更新しました！");
     } catch (error) {
       console.error("Failed to mark delivered and apply stock:", error);
       if (error instanceof ApiError) {
@@ -274,9 +288,9 @@ const InventoryPage: React.FC = () => {
           typeof error.response === "string"
             ? error.response
             : error.response?.message || error.message;
-        toast.error(`Failed to process delivery: ${errorMessage}`);
+        toast.error(`納品処理に失敗しました: ${errorMessage}`);
       } else {
-        toast.error("Failed to connect to server. Please try again.");
+        toast.error("サーバーに接続できません。再度お試しください。");
       }
     }
   };
@@ -312,14 +326,13 @@ const InventoryPage: React.FC = () => {
               <thead className="border-b border-gray-200 bg-gray-50 text-xs font-semibold text-gray-500 uppercase">
                 <tr>
                   <th className="px-6 py-4">商品名</th>
-                  <th className="px-6 py-4">カテゴリー</th>
+                  <th className="hidden px-6 py-4">カテゴリー</th>
                   <th className="px-6 py-4">在庫</th>
                   <th className="px-6 py-4">最終更新</th>
                   <th className="px-6 py-4">工場依頼</th>
                   <th className="px-6 py-4">操作</th>
                 </tr>
               </thead>
-
               <tbody className="divide-y divide-gray-100">
                 {mergedData.map((item) => {
                   // Logic nghiệp vụ: Chỉ quản lý tồn kho cho Bánh (Food).
@@ -344,7 +357,7 @@ const InventoryPage: React.FC = () => {
                         </div>
                       </td>
 
-                      <td className="px-6 py-4 text-gray-500">
+                      <td className="hidden px-6 py-4 text-gray-500">
                         <span className="rounded bg-gray-100 px-2 py-1 text-xs">
                           {categoryMap[item.category_id] ?? item.category_id ?? "-"}
                         </span>
@@ -384,30 +397,44 @@ const InventoryPage: React.FC = () => {
                         {!isStockManaged ? (
                           <span className="text-xs text-gray-400 italic">対象外</span>
                         ) : (
-                          <button
-                            // Chỉ cho phép yêu cầu khi tồn kho thấp (isLow)
-                            disabled={!isLow}
-                            onClick={() =>
-                              openRequestModal(
-                                item.product_id,
-                                item.name,
-                                item.stock,
-                                item.threshold
-                              )
-                            }
-                            className={[
-                              "inline-flex items-center rounded-lg border px-3 py-2 text-xs font-semibold transition",
-                              isLow
-                                ? "border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100"
-                                : "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400",
-                            ].join(" ")}
-                            title={
-                              isLow ? "工場へ追加焼成を依頼" : "基準値以下になったら依頼できます"
-                            }
-                          >
-                            <Factory className="mr-2 h-4 w-4" />
-                            依頼
-                          </button>
+                          (() => {
+                            const hasActiveReq = factoryRequests.some(
+                              (r) =>
+                                r.product_id === item.product_id &&
+                                r.status !== "CANCELLED" &&
+                                r.status !== "DELIVERED"
+                            );
+                            const disabledBtn = !isLow || hasActiveReq;
+                            return (
+                              <button
+                                disabled={disabledBtn}
+                                onClick={() =>
+                                  openRequestModal(
+                                    item.product_id,
+                                    item.name,
+                                    item.stock,
+                                    item.threshold
+                                  )
+                                }
+                                className={[
+                                  "inline-flex items-center rounded-lg border px-3 py-2 text-xs font-semibold transition",
+                                  !disabledBtn
+                                    ? "border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100"
+                                    : "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400",
+                                ].join(" ")}
+                                title={
+                                  hasActiveReq
+                                    ? "既に依頼があります。キャンセルまたは納品されるまで新しい依頼は作成できません。"
+                                    : isLow
+                                      ? "工場へ追加焼成を依頼"
+                                      : "基準値以下になったら依頼できます"
+                                }
+                              >
+                                <Factory className="mr-2 h-4 w-4" />
+                                依頼
+                              </button>
+                            );
+                          })()
                         )}
                       </td>
 
@@ -486,9 +513,7 @@ const InventoryPage: React.FC = () => {
                         <div className="mt-1 text-xs text-gray-500">
                           依頼: {formatJa(req.created_at)}
                         </div>
-                        <div className="mt-1 text-xs text-gray-500">
-                          到着予定: {formatJa(req.eta_at)}
-                        </div>
+                        {/* 到着予定 は UI から非表示にしました */}
                         {req.note && (
                           <div className="mt-2 text-xs text-gray-500">メモ: {req.note}</div>
                         )}

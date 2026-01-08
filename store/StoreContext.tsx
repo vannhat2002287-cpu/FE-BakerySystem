@@ -79,9 +79,9 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       } catch (error) {
         console.error("Failed to fetch data:", error);
         if (error instanceof ApiError) {
-          toast.error(`Failed to load data: ${error.message}`);
+          toast.error(`データの読み込みに失敗しました: ${error.message}`);
         } else {
-          toast.error("Failed to connect to server. Please check your connection.");
+          toast.error("サーバーに接続できません。接続を確認してください。");
         }
       } finally {
         setIsLoading(false);
@@ -93,8 +93,9 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const isStockManaged = (product: Product | undefined) => {
     if (!product) return false;
-    // Drinks and Alcohol are not subject to inventory tracking
-    return product.type !== "drink" && product.type !== "alcohol";
+    // Treat a product as stock-managed when there is an inventory entry for it.
+    // This allows drinks/alcohol to be inventory-tracked if an entry exists.
+    return inventory.some((inv) => inv.product_id === product.product_id);
   };
 
   const addToCart = (product: Product) => {
@@ -105,7 +106,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         if (isStockManaged(product)) {
           const stock = inventory.find((inv) => inv.product_id === product.product_id);
           if (stock && existing.quantity >= stock.current_quantity) {
-            toast.error("在庫不足です (Out of Stock)");
+            toast.error("在庫不足です。");
             return prev;
           }
         }
@@ -134,7 +135,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           if (product && isStockManaged(product)) {
             const stock = inventory.find((inv) => inv.product_id === productId);
             if (stock && newQty > stock.current_quantity) {
-              toast.error("在庫不足です (Out of Stock)");
+              toast.error("在庫不足です。");
               return item;
             }
           }
@@ -192,7 +193,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
       // Clear cart
       setCart([]);
-      toast.success("Order created successfully!");
+      toast.success("注文が作成されました。");
       return true;
     } catch (error) {
       console.error("Failed to place order:", error);
@@ -208,9 +209,9 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             errorMessage = error.response.error;
           }
         }
-        toast.error(`Failed to create order: ${errorMessage}`);
+        toast.error(`注文の作成に失敗しました: ${errorMessage}`);
       } else {
-        toast.error("Failed to connect to server. Please try again.");
+        toast.error("サーバーに接続できません。再度お試しください。");
       }
       return false;
     }
