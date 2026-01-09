@@ -2,6 +2,7 @@ import { apiRequest } from "./client";
 import { buildApiUrl, API_ENDPOINTS } from "./config";
 import { Order, OrderType, PaymentMethod } from "../types";
 
+// DTO request tạo đơn
 interface OrderItemRequestDTO {
   productId: number;
   quantity: number;
@@ -14,6 +15,7 @@ interface OrderRequestDTO {
   items: OrderItemRequestDTO[];
 }
 
+// DTO response đơn hàng
 interface OrderItemDTO {
   product_id: number;
   name: string;
@@ -32,6 +34,7 @@ interface OrderDTO {
   items: OrderItemDTO[];
 }
 
+// Chuyển đổi orderType giữa BE và FE
 function mapBackendOrderTypeToFrontend(orderType: "EAT_IN" | "TAKEAWAY"): OrderType {
   return orderType === "EAT_IN" ? "eat-in" : "takeaway";
 }
@@ -48,6 +51,7 @@ function mapPaymentMethodToBackend(paymentMethod: PaymentMethod): "cash" {
   return "cash";
 }
 
+// Chuyển dữ liệu FE sang DTO để gửi BE
 function mapOrderToRequestDTO(
   items: Array<{ product_id: string; quantity: number }>,
   orderType: OrderType,
@@ -65,6 +69,7 @@ function mapOrderToRequestDTO(
   };
 }
 
+// Chuyển DTO sang format Frontend
 function mapOrderDTOToOrder(dto: OrderDTO): Order {
   return {
     order_id: String(dto.order_id),
@@ -83,6 +88,7 @@ function mapOrderDTOToOrder(dto: OrderDTO): Order {
   };
 }
 
+// Tạo đơn hàng mới
 export async function createOrder(
   items: Array<{ product_id: string; quantity: number }>,
   orderType: OrderType,
@@ -102,6 +108,7 @@ export async function createOrder(
   return mapOrderDTOToOrder(data);
 }
 
+// Lấy danh sách đơn theo ngày
 export async function getOrdersByDate(date: string, orderType?: OrderType): Promise<Order[]> {
   const params: Record<string, string> = { date };
   if (orderType) {
@@ -114,6 +121,7 @@ export async function getOrdersByDate(date: string, orderType?: OrderType): Prom
   return data.map(mapOrderDTOToOrder);
 }
 
+// Lấy chi tiết đơn theo ID
 export async function getOrderById(orderId: string): Promise<Order> {
   const url = buildApiUrl(`${API_ENDPOINTS.ORDERS}/${orderId}`);
   const data = await apiRequest<OrderDTO>(url);

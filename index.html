@@ -1,16 +1,23 @@
 <!doctype html>
+<!-- index.html - File HTML chính, điểm vào của ứng dụng -->
 <html lang="ja">
   <head>
     <meta charset="utf-8" />
+    <!-- Cấu hình viewport cho thiết bị di động, chặn zoom -->
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"
     />
     <title>FRESH BAKERY POS</title>
+    <!-- Import file CSS chính -->
     <link rel="stylesheet" href="/index.css" />
   </head>
+  <!-- Body với các class Tailwind: chọn text màu brand, ẩn scroll, nền xám, chữ đen, khử răng cưa -->
+
   <body class="selection:bg-brand-200 overflow-hidden bg-gray-50 text-gray-900 antialiased">
+    <!-- Container để React render ứng dụng -->
     <div id="root"></div>
+    <!-- Entry point React -->
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

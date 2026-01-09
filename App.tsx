@@ -1,3 +1,8 @@
+/**
+ * App.tsx - Component gốc của ứng dụng
+ * Thiết lập routing, providers và layout chung
+ */
+
 import React from "react";
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
@@ -11,18 +16,21 @@ import { toastConfig } from "./config/toast";
 
 function App() {
   return (
+    // StoreProvider: cung cấp global state cho toàn app
     <StoreProvider>
+      {/* HashRouter: routing dạng hash, tương thích static hosting */}
       <HashRouter>
         <Layout>
           <Routes>
-            <Route path="/" element={<POS />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/inventory" element={<InventoryPage />} />
-            <Route path="/history" element={<HistoryPage />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="/" element={<POS />} /> {/* Trang bán hàng */}
+            <Route path="/dashboard" element={<Dashboard />} /> {/* Thống kê */}
+            <Route path="/inventory" element={<InventoryPage />} /> {/* Tồn kho */}
+            <Route path="/history" element={<HistoryPage />} /> {/* Lịch sử */}
+            <Route path="*" element={<Navigate to="/" replace />} /> {/* Redirect về trang chủ */}
           </Routes>
         </Layout>
       </HashRouter>
+      {/* Hiển thị thông báo toast */}
       <Toaster {...toastConfig} />
     </StoreProvider>
   );

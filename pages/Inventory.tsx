@@ -1,3 +1,4 @@
+// Trang quản lý tồn kho và yêu cầu nhập hàng từ nhà máy
 import React, { useMemo, useState, useEffect } from "react";
 import { useStore } from "@/store/StoreContext";
 import { Edit2, Save, X, Factory, PackageCheck, ClipboardList } from "lucide-react";
@@ -14,19 +15,14 @@ import Loading from "@/components/Loading";
 import { getCategories } from "@/api/categories";
 import type { Category } from "@/types";
 
-// Hàm tiện ích: Cộng thêm phút vào thời gian hiện tại (Dùng để tính ETA mặc định)
+// Cộng thêm phút vào Date (tính ETA mặc định)
 const addMinutes = (date: Date, minutes: number) => new Date(date.getTime() + minutes * 60 * 1000);
 
-/**
- * Component InventoryPage
- * Mục đích: Quản lý hiển thị tồn kho, chỉnh sửa số lượng tồn kho thủ công,
- * và quản lý quy trình yêu cầu nhập hàng bổ sung từ nhà máy (Factory Request).
- */
 const InventoryPage: React.FC = () => {
-  // Lấy dữ liệu và hàm cập nhật từ Global Store
+  // Lấy dữ liệu từ Store
   const { products, inventory, updateInventory } = useStore();
 
-  // Categories (for display name lookup)
+  // Danh mục sản phẩm
   const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
@@ -45,45 +41,37 @@ const InventoryPage: React.FC = () => {
     };
   }, []);
 
+  // Map category_id → tên danh mục
   const categoryMap = useMemo(
     () => Object.fromEntries(categories.map((c) => [c.category_id, c.name])),
     [categories]
   );
 
-  // ===== Phần 1: State cho chức năng chỉnh sửa tồn kho thủ công (Inline Edit) =====
-  // editingId: Lưu ID sản phẩm đang được chỉnh sửa. Nếu null nghĩa là không có dòng nào đang sửa.
-  const [editingId, setEditingId] = useState<string | null>(null);
-  // editValue: Lưu giá trị tạm thời của ô input khi người dùng đang nhập liệu.
-  const [editValue, setEditValue] = useState<number>(0);
+  // ===== State chỉnh sửa tồn kho (Inline Edit) =====
+  const [editingId, setEditingId] = useState<string | null>(null); // ID sản phẩm đang sửa
+  const [editValue, setEditValue] = useState<number>(0); // Giá trị tạm
 
-  // ===== Phần 2: State cho chức năng Yêu cầu Nhà máy (Factory Request) =====
-  // factoryRequests: Danh sách các yêu cầu đã tạo (Fetch từ API).
-  const [factoryRequests, setFactoryRequests] = useState<FactoryRequest[]>([]);
+  // ===== State yêu cầu nhà máy =====
+  const [factoryRequests, setFactoryRequests] = useState<FactoryRequest[]>([]); // Danh sách yêu cầu
   const [isLoadingFactoryRequests, setIsLoadingFactoryRequests] = useState<boolean>(true);
-  // requestModalOpen: Trạng thái đóng/mở của Modal yêu cầu nhập hàng.
-  const [requestModalOpen, setRequestModalOpen] = useState(false);
-  // requestTarget: Lưu thông tin sản phẩm đang được chọn để tạo yêu cầu (để hiển thị lên Modal).
+  const [requestModalOpen, setRequestModalOpen] = useState(false); // Đóng/mở modal
   const [requestTarget, setRequestTarget] = useState<{
+    // Sản phẩm được chọn cho modal
     product_id: string;
     product_name: string;
     current_stock: number;
     threshold: number;
   } | null>(null);
 
-  // State cho Form trong Modal
-  const [requestQty, setRequestQty] = useState<number>(10);
-  const [requestNote, setRequestNote] = useState<string>("");
-  // Mặc định thời gian giao hàng là 5 phút sau khi tạo (Giả lập khoảng cách gần)
+  // State form modal
+  const [requestQty, setRequestQty] = useState<number>(10); // Số lượng yêu cầu
+  const [requestNote, setRequestNote] = useState<string>(""); // Ghi chú
   const [requestEta, setRequestEta] = useState<string>(() =>
+    // ETA mặc định 5 phút
     addMinutes(new Date(), 5).toISOString().slice(0, 16)
-  ); // Format: "YYYY-MM-DDTHH:mm"
+  );
 
-  /**
-   * useMemo - mergedData:
-   * Mục đích: Kết hợp dữ liệu tĩnh (Product) và dữ liệu động (Inventory) thành một mảng duy nhất.
-   * Lý do: Để hiển thị đầy đủ thông tin (Ảnh, Tên, Tồn kho, Mức cảnh báo) trên cùng một bảng.
-   * Chỉ tính toán lại khi `products` hoặc `inventory` thay đổi để tối ưu hiệu năng.
-   */
+  // Kết hợp products + inventory để hiển thị bảng
   const mergedData = useMemo(() => {
     return products.map((p) => {
       const inv = inventory.find((i) => i.product_id === p.product_id);
@@ -96,7 +84,7 @@ const InventoryPage: React.FC = () => {
     });
   }, [products, inventory]);
 
-  // Bắt đầu chỉnh sửa thủ công: Lưu ID và giá trị hiện tại vào state tạm
+  // Bắt đầu chỉnh sửa inline
   const startEdit = (id: string, current: number) => {
     setEditingId(id);
     setEditValue(current);
@@ -122,7 +110,7 @@ const InventoryPage: React.FC = () => {
     fetchFactoryRequests();
   }, []);
 
-  // Lưu chỉnh sửa thủ công: Gọi API để update inventory và đóng chế độ sửa
+  // Lưu chỉnh sửa và gọi API
   const saveEdit = async (id: string) => {
     try {
       await adjustInventory(id, editValue);
@@ -143,9 +131,7 @@ const InventoryPage: React.FC = () => {
     }
   };
 
-  // ===== Các hàm xử lý logic cho Yêu cầu Nhà máy =====
-
-  // Mở Modal: Thiết lập dữ liệu ban đầu cho form
+  // Mở modal tạo yêu cầu mới
   const openRequestModal = (
     product_id: string,
     product_name: string,
@@ -159,19 +145,16 @@ const InventoryPage: React.FC = () => {
       threshold,
     });
 
-    // Logic gợi ý số lượng:
-    // Công thức: (Mức cảnh báo * 2) - Tồn kho hiện tại.
-    // Mục đích: Đề xuất số lượng nạp kho hợp lý để kho không bị đầy quá hoặc thiếu quá.
-    // Tối thiểu là 1, mặc định fallback là 10.
+    // Gợi ý số lượng: (threshold * 2) - stock, tối thiểu 1
     const recommended = Math.max(1, threshold * 2 - stock);
 
     setRequestQty(recommended || 10);
     setRequestNote("");
-    setRequestEta(addMinutes(new Date(), 5).toISOString().slice(0, 16)); // Reset lại ETA là 5 phút từ bây giờ
+    setRequestEta(addMinutes(new Date(), 5).toISOString().slice(0, 16));
     setRequestModalOpen(true);
   };
 
-  // Tạo yêu cầu mới: Gọi API để tạo factory request
+  // Tạo yêu cầu nhập hàng mới
   const handleCreateFactoryRequest = async () => {
     if (!requestTarget) return;
 
@@ -235,7 +218,7 @@ const InventoryPage: React.FC = () => {
     }
   };
 
-  // Hủy yêu cầu: Gọi API để update status thành CANCELLED
+  // Hủy yêu cầu (status → CANCELLED)
   const cancelFactoryRequest = async (request_id: string) => {
     try {
       const updatedReq = await updateFactoryRequestStatus(request_id, "CANCELLED");
@@ -255,14 +238,7 @@ const InventoryPage: React.FC = () => {
     }
   };
 
-  /**
-   * Xử lý nhận hàng (DELIVERED):
-   * Mục đích: Xác nhận hàng đã về và cập nhật số lượng tồn kho thực tế.
-   * Logic:
-   * 1. Tìm tồn kho mới nhất từ `mergedData` (để đảm bảo tính chính xác realtime).
-   * 2. Cộng dồn số lượng yêu cầu vào tồn kho hiện tại qua API.
-   * 3. Cập nhật trạng thái yêu cầu thành 'DELIVERED' qua API.
-   */
+  // Xác nhận nhận hàng và cập nhật tồn kho
   const markDeliveredAndApplyStock = async (req: FactoryRequest) => {
     try {
       const latest = mergedData.find((m) => m.product_id === req.product_id);
@@ -295,7 +271,7 @@ const InventoryPage: React.FC = () => {
     }
   };
 
-  // Hàm format ngày tháng sang chuẩn giờ VietNam để hiển thị giao diện
+  // Format ngày giờ theo timezone VN
   const formatJa = (iso: string) =>
     new Date(iso).toLocaleString("ja-JP", { timeZone: "Asia/Ho_Chi_Minh" });
 
@@ -309,7 +285,7 @@ const InventoryPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Thống kê nhanh số lượng yêu cầu đang chờ */}
+        {/* Badge đếm yêu cầu PENDING */}
         <div className="flex items-center gap-2 text-xs">
           <span className="inline-flex items-center rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-gray-600">
             <ClipboardList className="mr-2 h-4 w-4" />
@@ -335,11 +311,9 @@ const InventoryPage: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {mergedData.map((item) => {
-                  // Logic nghiệp vụ: Chỉ quản lý tồn kho cho Bánh (Food).
-                  // Đồ uống (drink) và Rượu (alcohol) được pha chế tại chỗ hoặc quản lý riêng nên không hiện ở đây.
+                  // Chỉ quản lý tồn kho cho bánh (không phải drink/alcohol)
                   const isStockManaged = item.type !== "drink" && item.type !== "alcohol";
-
-                  // Cờ báo động: Tồn kho thực tế <= Mức tối thiểu
+                  // Cảnh báo khi tồn kho <= ngưỡng
                   const isLow = isStockManaged && item.stock <= item.threshold;
 
                   return (
@@ -392,7 +366,7 @@ const InventoryPage: React.FC = () => {
                           : "-"}
                       </td>
 
-                      {/* ===== Cột: Nút Yêu cầu Nhà máy ===== */}
+                      {/* Nút yêu cầu nhà máy */}
                       <td className="px-6 py-4 whitespace-nowrap">
                         {!isStockManaged ? (
                           <span className="text-xs text-gray-400 italic">対象外</span>
@@ -519,7 +493,7 @@ const InventoryPage: React.FC = () => {
                         )}
                       </div>
 
-                      {/* Badge hiển thị trạng thái */}
+                      {/* Badge trạng thái */}
                       <div className="text-xs">
                         {req.status === "PENDING" && (
                           <span className="rounded border border-orange-200 bg-orange-50 px-2 py-1 text-orange-700">
@@ -539,7 +513,7 @@ const InventoryPage: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Action Buttons: Chỉ hiện khi trạng thái là PENDING */}
+                    {/* Nút action (chỉ hiện khi PENDING) */}
                     {req.status === "PENDING" && (
                       <div className="mt-3 flex gap-2">
                         <button

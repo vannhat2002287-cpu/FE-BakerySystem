@@ -2,12 +2,14 @@ import { apiRequest } from "./client";
 import { buildApiUrl, API_ENDPOINTS } from "./config";
 import { getOrdersByDate } from "./orders";
 
+// DTO sản phẩm bán chạy
 interface PopularProductDTO {
   product_id: number;
   name: string;
   sold_quantity: number;
 }
 
+// DTO response dashboard
 interface DashboardResponseDTO {
   daily_sales: number;
   order_count: number;
@@ -16,6 +18,7 @@ interface DashboardResponseDTO {
   popular_products: PopularProductDTO[];
 }
 
+// Interface cho Frontend
 export interface DashboardData {
   dailySales: number;
   orderCount: number;
@@ -25,6 +28,7 @@ export interface DashboardData {
   popularProducts: Array<{ id: string; name: string; count: number }>;
 }
 
+// Chuyển DTO sang format Frontend
 function mapDashboardDTOToDashboardData(
   dto: DashboardResponseDTO,
   eatInSales: number,
@@ -51,11 +55,11 @@ function mapDashboardDTOToDashboardData(
   };
 }
 
+// Lấy dữ liệu dashboard (gọi thêm API orders để tính doanh thu theo loại đơn)
 export async function getDashboard(): Promise<DashboardData> {
   const url = buildApiUrl(`${API_ENDPOINTS.ANALYTICS}/dashboard`);
   const analyticsData = await apiRequest<DashboardResponseDTO>(url);
 
-  // TODO: xóa logic tính eatInSales, takeawaySales thủ công này nếu BE trả về từ api rồi
   let eatInSales = 0;
   let takeawaySales = 0;
 

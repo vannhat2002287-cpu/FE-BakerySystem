@@ -1,6 +1,10 @@
 
+# File cấu hình Git - Định nghĩa các file/folder không được track bởi Git
+
+# Dependencies - thư viện npm (cài lại bằng npm install)
 node_modules
-# Logs
+
+# Logs - file log debug
 logs
 *.log
 npm-debug.log*
@@ -9,12 +13,12 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
+# Build output - folder build (tạo lại bằng npm run build)
 dist
 dist-ssr
 *.local
 
-# Editor directories and files
+# Editor/IDE - cấu hình editor cá nhân
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -25,6 +29,7 @@ dist-ssr
 *.sln
 *.sw?
 
+# Environment variables - file chứa secrets, không commit lên Git
 .env
 .env.production
 .env.development

@@ -1,8 +1,10 @@
 import { apiRequest } from "./client";
 import { buildApiUrl, API_ENDPOINTS } from "./config";
 
+// Trạng thái yêu cầu: PENDING | DELIVERED | CANCELLED
 type FactoryRequestStatus = "PENDING" | "DELIVERED" | "CANCELLED";
 
+// DTO request tạo yêu cầu
 interface FactoryRequestDTO {
   productId: number;
   requestQuantity: number;
@@ -10,6 +12,7 @@ interface FactoryRequestDTO {
   note?: string;
 }
 
+// DTO response từ Backend
 interface FactoryRequestResponseDTO {
   request_id: number;
   product_id: number;
@@ -21,6 +24,7 @@ interface FactoryRequestResponseDTO {
   status: FactoryRequestStatus;
 }
 
+// Interface cho Frontend
 export interface FactoryRequest {
   request_id: string;
   product_id: string;
@@ -32,6 +36,7 @@ export interface FactoryRequest {
   status: FactoryRequestStatus;
 }
 
+// Chuyển DTO sang format Frontend
 function mapFactoryRequestDTOToFactoryRequest(dto: FactoryRequestResponseDTO): FactoryRequest {
   return {
     request_id: String(dto.request_id),
@@ -45,6 +50,7 @@ function mapFactoryRequestDTOToFactoryRequest(dto: FactoryRequestResponseDTO): F
   };
 }
 
+// Chuyển dữ liệu FE sang DTO
 function mapFactoryRequestToDTO(
   productId: string,
   requestQuantity: number,
@@ -52,13 +58,14 @@ function mapFactoryRequestToDTO(
   note?: string
 ): FactoryRequestDTO {
   return {
-    productId: parseInt(productId),
+    productId: Number.parseInt(productId),
     requestQuantity,
     etaAt: etaAt,
     note: note?.trim() || undefined,
   };
 }
 
+// Lấy tất cả yêu cầu đặt hàng
 export async function getAllFactoryRequests(): Promise<FactoryRequest[]> {
   const url = buildApiUrl(API_ENDPOINTS.FACTORY_REQUESTS);
   const data = await apiRequest<FactoryRequestResponseDTO[]>(url);
@@ -66,6 +73,7 @@ export async function getAllFactoryRequests(): Promise<FactoryRequest[]> {
   return data.map(mapFactoryRequestDTOToFactoryRequest);
 }
 
+// Tạo yêu cầu đặt hàng mới
 export async function createFactoryRequest(
   productId: string,
   requestQuantity: number,
@@ -83,6 +91,7 @@ export async function createFactoryRequest(
   return mapFactoryRequestDTOToFactoryRequest(data);
 }
 
+// Cập nhật trạng thái yêu cầu
 export async function updateFactoryRequestStatus(
   requestId: string,
   status: FactoryRequestStatus

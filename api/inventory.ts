@@ -2,6 +2,7 @@ import { apiRequest } from "./client";
 import { buildApiUrl, API_ENDPOINTS } from "./config";
 import { Inventory } from "../types";
 
+// DTO từ Backend
 interface InventoryDTO {
   product_id: number;
   current_quantity: number;
@@ -9,6 +10,7 @@ interface InventoryDTO {
   last_updated: string;
 }
 
+// Chuyển DTO sang format Frontend
 function mapInventoryDTOToInventory(dto: InventoryDTO): Inventory {
   return {
     product_id: String(dto.product_id),
@@ -18,6 +20,7 @@ function mapInventoryDTOToInventory(dto: InventoryDTO): Inventory {
   };
 }
 
+// Lấy danh sách tồn kho
 export async function getAllInventory(): Promise<Inventory[]> {
   const url = buildApiUrl(API_ENDPOINTS.INVENTORY);
   const data = await apiRequest<InventoryDTO[]>(url);
@@ -25,6 +28,7 @@ export async function getAllInventory(): Promise<Inventory[]> {
   return data.map(mapInventoryDTOToInventory);
 }
 
+// Cập nhật số lượng tồn kho
 export async function adjustInventory(
   productId: string,
   currentQuantity: number

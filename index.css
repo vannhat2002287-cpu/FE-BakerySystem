@@ -1,5 +1,9 @@
+/* index.css - File CSS chính của ứng dụng */
+
+/* Import Tailwind CSS */
 @import "tailwindcss";
 
+/* Định nghĩa màu thương hiệu (brand colors) */
 @theme {
   --color-brand-50: #fff8f1;
   --color-brand-100: #ffefdb;
@@ -13,7 +17,7 @@
   --color-brand-900: #7c3013;
 }
 
-/* Custom scrollbar for POS feel */
+/* Tùy chỉnh thanh cuộn cho giao diện POS */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -21,13 +25,16 @@
 
 ::-webkit-scrollbar-track {
   background: #f1f1f1;
+  /* Màu nền track */
 }
 
 ::-webkit-scrollbar-thumb {
   background: #ccc;
+  /* Màu thanh cuộn */
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: #999;
+  /* Màu khi hover */
 }

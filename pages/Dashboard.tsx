@@ -1,3 +1,4 @@
+// Trang Dashboard - hiển thị thống kê tổng quan
 import React, { useState, useEffect, useMemo } from "react";
 import { useStore } from "@/store/StoreContext";
 import {
@@ -22,6 +23,8 @@ import Loading from "@/components/Loading";
 
 const Dashboard: React.FC = () => {
   const { inventory, products } = useStore();
+
+  // State quản lý dữ liệu dashboard
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,21 +34,24 @@ const Dashboard: React.FC = () => {
   const [todayOrderCount, setTodayOrderCount] = useState<number>(0);
   const [todayDailySales, setTodayDailySales] = useState<number>(0);
 
-  // Fetch today's orders first (Hanoi timezone) to compute KPIs, then fetch analytics for charts/fallback
+  // Hàm lấy dữ liệu dashboard từ API
   const fetchDashboardData = React.useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
 
+      // Bước 1: Lấy đơn hàng hôm nay để tính KPI
       try {
         const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
         const orders = await getOrdersByDate(today);
         console.debug("[Dashboard] today (Ho_Chi_Minh):", today);
         console.debug("[Dashboard] orders.length from getOrdersByDate:", orders.length);
 
+        // Tính tổng số đơn và doanh thu
         const totalOrders = orders.length;
         const totalSales = orders.reduce((s, o) => s + (o.total_amount || 0), 0);
 
+        // Tính sản phẩm bán chạy từ đơn hàng
         const counts = new Map<string, { name: string; count: number }>();
         orders.forEach((order) => {
           order.items.forEach((it) => {
@@ -57,6 +63,7 @@ const Dashboard: React.FC = () => {
           });
         });
 
+        // Sắp xếp và lấy top 5
         const todayArr = Array.from(counts.entries())
           .map(([id, v]) => ({
             id,
@@ -79,7 +86,7 @@ const Dashboard: React.FC = () => {
         console.error("Failed to fetch today's orders for dashboard KPIs:", e);
       }
 
-      // analytics for charts and fallback
+      // Bước 2: Lấy analytics cho biểu đồ
       try {
         const data = await getDashboard();
         console.debug("[Dashboard] analytics.dailySales from getDashboard():", data?.dailySales);
@@ -101,12 +108,12 @@ const Dashboard: React.FC = () => {
     }
   }, [products]);
 
+  // Gọi API khi component mount
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  // Today's popular products are computed inside fetchDashboardData; duplicate effect removed.
-
+  // Lọc sản phẩm sắp hết hàng (không tính đồ uống)
   const lowStockItems = inventory.filter((i) => {
     const product = products.find((p) => p.product_id === i.product_id);
     if (product && (product.type === "drink" || product.type === "alcohol")) {
@@ -115,11 +122,13 @@ const Dashboard: React.FC = () => {
     return i.current_quantity <= i.min_threshold;
   });
 
+  // Chuẩn bị dữ liệu hiển thị (ưu tiên dữ liệu tính từ orders)
   const lowStockCount = dashboardData?.lowStockCount ?? lowStockItems.length;
-
   const dailySales = todayDailySales ?? dashboardData?.dailySales ?? 0;
   const orderCount = todayOrderCount ?? dashboardData?.orderCount ?? 0;
   const hourlyData = dashboardData?.hourlyData ?? [];
+
+  // Dữ liệu biểu đồ tròn (eat-in vs takeaway)
   const typeData = useMemo(() => {
     if (dashboardData?.typeData && dashboardData.typeData.length > 0) {
       return dashboardData.typeData;
@@ -129,14 +138,18 @@ const Dashboard: React.FC = () => {
       { name: "持ち帰り (Takeaway)", value: 0 },
     ];
   }, [dashboardData?.typeData]);
+
+  // Top 5 sản phẩm bán chạy
   const popularProducts = (
     todayPopular.length > 0 ? todayPopular : (dashboardData?.popularProducts ?? [])
   ).slice(0, 5);
 
+  // Màu cho biểu đồ tròn
   const COLORS = ["#ea5f0c", "#fb923c"];
 
   return (
     <div className="h-full overflow-y-auto p-8">
+      {/* Tiêu đề với ngày hiện tại */}
       <h1 className="text-2xl font-bold text-gray-800">
         ダッシュボード (本日:{" "}
         {new Date().toLocaleDateString("ja-JP", { timeZone: "Asia/Ho_Chi_Minh" })})
@@ -148,8 +161,9 @@ const Dashboard: React.FC = () => {
         </div>
       ) : (
         <>
-          {/* KPI Cards */}
+          {/* Thẻ KPI: Doanh thu, Số đơn, Đơn giá TB, Cảnh báo tồn kho */}
           <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+            {/* Doanh thu hôm nay */}
             <div className="flex items-center rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
               <div className="bg-brand-100 text-brand-600 mr-4 rounded-lg p-3">
                 <JapaneseYen className="h-8 w-8" />
@@ -160,6 +174,7 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
 
+            {/* Số đơn hàng */}
             <div className="flex items-center rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
               <div className="mr-4 rounded-lg bg-blue-100 p-3 text-blue-600">
                 <ShoppingBag className="h-8 w-8" />
@@ -170,6 +185,7 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
 
+            {/* Đơn giá trung bình */}
             <div className="flex items-center rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
               <div className="mr-4 rounded-lg bg-green-100 p-3 text-green-600">
                 <TrendingUp className="h-8 w-8" />
@@ -182,6 +198,7 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
 
+            {/* Cảnh báo tồn kho thấp */}
             <div className="flex items-center rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
               <div className="mr-4 rounded-lg bg-red-100 p-3 text-red-600">
                 <AlertTriangle className="h-8 w-8" />
@@ -193,8 +210,9 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Charts */}
+          {/* Biểu đồ */}
           <div className="mb-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
+            {/* Biểu đồ cột: Doanh thu theo giờ */}
             <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm lg:col-span-2">
               <h3 className="mb-4 font-bold text-gray-700">時間別売上推移 (24時間)</h3>
               <div className="h-64">
@@ -228,6 +246,7 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
 
+            {/* Biểu đồ tròn: Tỷ lệ eat-in vs takeaway */}
             <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
               <h3 className="mb-4 font-bold text-gray-700">売上構成比</h3>
               <div className="h-64">
@@ -256,7 +275,7 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Popular Products Ranking */}
+          {/* Bảng xếp hạng sản phẩm bán chạy */}
           <div className="mb-8 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
             <div className="flex items-center justify-between border-b border-gray-100 bg-white px-6 py-4">
               <h3 className="text-lg font-bold text-gray-700">人気商品ランキング</h3>

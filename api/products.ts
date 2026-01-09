@@ -2,6 +2,7 @@ import { apiRequest } from "./client";
 import { buildApiUrl, API_ENDPOINTS } from "./config";
 import { Product } from "../types";
 
+// DTO từ Backend
 interface ProductDTO {
   product_id: number;
   name: string;
@@ -13,6 +14,7 @@ interface ProductDTO {
   is_active: boolean;
 }
 
+// Chuyển DTO sang format Frontend
 function mapProductDTOToProduct(dto: ProductDTO): Product {
   return {
     product_id: String(dto.product_id),
@@ -26,12 +28,14 @@ function mapProductDTOToProduct(dto: ProductDTO): Product {
   };
 }
 
+// Params cho hàm getProducts
 export interface GetProductsParams {
   category_id?: string;
   search?: string;
   is_active?: boolean;
 }
 
+// Lấy danh sách sản phẩm (có thể lọc)
 export async function getProducts(params?: GetProductsParams): Promise<Product[]> {
   const queryParams: Record<string, string | number | boolean> = {};
 
@@ -51,6 +55,7 @@ export async function getProducts(params?: GetProductsParams): Promise<Product[]
   return data.map(mapProductDTOToProduct);
 }
 
+// Lấy chi tiết sản phẩm theo ID
 export async function getProductById(productId: string): Promise<Product> {
   const url = buildApiUrl(`${API_ENDPOINTS.PRODUCTS}/${productId}`);
   const data = await apiRequest<ProductDTO>(url);

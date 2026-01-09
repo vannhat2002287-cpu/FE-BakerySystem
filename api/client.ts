@@ -1,3 +1,4 @@
+// Class lỗi API - lưu status code và response
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -9,6 +10,7 @@ export class ApiError extends Error {
   }
 }
 
+// Hàm gọi API chung - tự động thêm headers và parse JSON
 export async function apiRequest<T>(url: string, options?: RequestInit): Promise<T> {
   try {
     const response = await fetch(url, {

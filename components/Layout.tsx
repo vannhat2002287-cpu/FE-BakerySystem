@@ -1,3 +1,4 @@
+// Layout chính của ứng dụng - bao gồm Sidebar và vùng nội dung
 import React from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -20,6 +21,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const { currentTime, setSimulationTime, resetSimulation, isSimulationMode } = useStore();
 
+  // Danh sách menu điều hướng
   const navItems = [
     { path: "/dashboard", icon: LayoutDashboard, label: "ダッシュボード" },
     { path: "/", icon: ShoppingCart, label: "注文" },
@@ -27,6 +29,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { path: "/history", icon: History, label: "注文履歴" },
   ];
 
+  // Xử lý thay đổi giờ giả lập
   const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.value) return;
     const [hours, minutes] = e.target.value.split(":").map(Number);
@@ -36,12 +39,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     setSimulationTime(newDate);
   };
 
+  // Format giờ hiển thị (HH:MM)
   const formattedTime = currentTime.toLocaleTimeString("ja-JP", {
     hour: "2-digit",
     minute: "2-digit",
     timeZone: "Asia/Ho_Chi_Minh",
   });
-  // For input value (HH:MM) in Ho_Chi_Minh timezone
+  // Giá trị cho input time (HH:MM) theo múi giờ VN
   const hhmm = currentTime
     .toLocaleTimeString("en-GB", {
       hour12: false,
@@ -54,13 +58,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div className="flex h-screen w-full bg-gray-50">
-      {/* Sidebar */}
+      {/* Sidebar - thanh điều hướng bên trái */}
       <aside className="z-20 flex w-64 flex-col border-r border-gray-200 bg-white shadow-sm">
+        {/* Logo và tên cửa hàng */}
         <div className="flex h-16 items-center border-b border-gray-100 px-6">
           <Croissant className="text-brand-600 mr-2 h-8 w-8" />
           <h1 className="text-xl font-bold tracking-tight text-gray-800">FRESH BAKERY</h1>
         </div>
 
+        {/* Menu điều hướng */}
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-6">
           {navItems.map((item) => (
             <NavLink
@@ -82,14 +88,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           ))}
         </nav>
 
-        {/* Time Simulation Widget at Bottom */}
+        {/* Widget hiển thị giờ hệ thống */}
         <div className="border-t border-gray-100 bg-gray-50/50 p-4">
           <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            {/* Header: tiêu đề + nút reset */}
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center text-xs font-bold tracking-wider text-gray-500 uppercase">
                 <Clock className="mr-1.5 h-3 w-3" />
                 システム時間
               </div>
+              {/* Nút reset về giờ thực (chỉ hiện khi đang giả lập) */}
               {isSimulationMode && (
                 <button
                   onClick={resetSimulation}
@@ -101,10 +109,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               )}
             </div>
 
+            {/* Hiển thị giờ hiện tại (font lớn) */}
             <div className="mb-3 rounded border border-gray-100 bg-gray-50 py-2 text-center font-mono text-2xl font-bold text-gray-800">
               {formattedTime}
             </div>
 
+            {/* Input chọn giờ giả lập (đang comment) */}
             <div className="space-y-2">
               <label className="block text-[10px] font-bold text-gray-400">
                 {/* 時間シミュレーション */}
@@ -117,11 +127,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               /> */}
             </div>
           </div>
+          {/* Chú thích quy định thời gian */}
           <div className="mt-3 space-y-1 px-1">
+            {/* Quy định: trước 17h không bán rượu */}
             <div className="flex items-center text-[12px] text-gray-400">
               <div className="mr-2 h-2 w-2 rounded-full bg-purple-400"></div>
               17:00未満: アルコール不可
             </div>
+            {/* Quy định: sau 20:30 không bán eat-in */}
             <div className="flex items-center text-[12px] text-gray-400">
               <div className="mr-2 h-2 w-2 rounded-full bg-blue-400"></div>
               20:30以降: イートイン不可

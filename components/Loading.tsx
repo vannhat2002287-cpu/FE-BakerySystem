@@ -1,17 +1,19 @@
+// Component Loading - hiển thị trạng thái đang tải
 import React from "react";
 
 export type LoadingSize = "sm" | "md" | "lg";
-export type LoadingVariant = "spinner" | "dots";
+export type LoadingVariant = "spinner" | "dots"; // spinner: vòng xoay, dots: 3 chấm nhấp nháy
 
 interface LoadingProps {
-  size?: LoadingSize;
-  variant?: LoadingVariant;
-  message?: string;
-  fullScreen?: boolean;
+  size?: LoadingSize; // Kích thước
+  variant?: LoadingVariant; // Kiểu hiển thị
+  message?: string; // Thông báo kèm theo
+  fullScreen?: boolean; // Có che toàn màn hình không
   className?: string;
   color?: string;
 }
 
+// Cấu hình class theo size
 const sizeClasses: Record<LoadingSize, { spinner: string; text: string }> = {
   sm: {
     spinner: "h-6 w-6 border-b-2",
@@ -38,6 +40,7 @@ const Loading: React.FC<LoadingProps> = ({
   const sizeClass = sizeClasses[size];
   const textSizeClass = sizeClass.text;
 
+  // Kiểu spinner: vòng tròn xoay
   const spinnerElement = (
     <div
       className={`mx-auto animate-spin rounded-full ${
@@ -46,6 +49,7 @@ const Loading: React.FC<LoadingProps> = ({
     />
   );
 
+  // Kiểu dots: 3 chấm nhấp nháy lần lượt
   const dotsElement = (
     <div className={`flex justify-center space-x-2 ${variant === "dots" ? "" : "hidden"}`}>
       {[0, 1, 2].map((i) => (
@@ -63,6 +67,7 @@ const Loading: React.FC<LoadingProps> = ({
     </div>
   );
 
+  // Nội dung loading (spinner/dots + message)
   const content = (
     <div className={`${className}`}>
       {variant === "spinner" ? spinnerElement : dotsElement}
@@ -70,6 +75,7 @@ const Loading: React.FC<LoadingProps> = ({
     </div>
   );
 
+  // Nếu fullScreen: overlay che toàn màn hình
   if (fullScreen) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm">

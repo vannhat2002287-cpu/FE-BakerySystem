@@ -1,8 +1,27 @@
+# File cấu hình Prettier - Định nghĩa các file/folder không được format bởi Prettier
+
+# Dependencies - thư viện không cần format
+
 node_modules
+
+# Build output - file đã build, không cần format
+
 dist
 build
+
+# Test coverage - báo cáo test
+
 coverage
+
+# Git hooks
+
 .husky
+
+# Lock files - file tự sinh, không sửa thủ công
+
 pnpm-lock.yaml
+
+# Minified files - file đã nén, không format được
+
 *.min.js
 *.min.css

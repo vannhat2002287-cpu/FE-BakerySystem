@@ -1,3 +1,4 @@
+// Trang lịch sử đơn hàng và phân tích doanh thu
 import React, { useState, useMemo, useEffect } from "react";
 import { ChevronDown, ChevronUp, FileText, Printer, Calendar } from "lucide-react";
 import { getOrdersByDate } from "@/api/orders";
@@ -11,20 +12,21 @@ import timezone from "dayjs/plugin/timezone";
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
+// Múi giờ server (Việt Nam)
 const SERVER_ZONE = "Asia/Ho_Chi_Minh";
 
 const HistoryPage: React.FC = () => {
+  // State quản lý
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [selectedDate, setSelectedDate] = useState<string>(() => {
-    // Default to today's date in Asia/Ho_Chi_Minh timezone (format YYYY-MM-DD)
+    // Mặc định là ngày hôm nay theo múi giờ VN
     return dayjs().tz(SERVER_ZONE).format("YYYY-MM-DD");
   });
   const [activeTab, setActiveTab] = useState<"daily" | "product">("daily");
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
-  // --- TAB 1: Daily Summary Logic ---
-  // Group orders by date (simple string YYYY-MM-DD)
+  // TAB 1: Tổng hợp đơn hàng theo ngày
   const dailySummary = useMemo(() => {
     const map = new Map<
       string,
@@ -38,8 +40,8 @@ const HistoryPage: React.FC = () => {
       }
     >();
 
+    // Nhóm đơn hàng theo ngày
     orders.forEach((order) => {
-      // Parse order_time and get date string in Asia/Ho_Chi_Minh to group per-day
       const dateStr = dayjs.tz(order.order_time, SERVER_ZONE).format("YYYY-MM-DD");
 
       if (!map.has(dateStr)) {
@@ -56,20 +58,20 @@ const HistoryPage: React.FC = () => {
       entry.total += order.total_amount;
       entry.count += 1;
       entry.orders.push(order);
+      // Phân loại doanh thu theo loại đơn
       if (order.order_type === "eat-in") entry.eatIn += order.total_amount;
       else entry.takeaway += order.total_amount;
     });
 
-    // Sort by date properly
+    // Sắp xếp theo ngày giảm dần (mới nhất trước)
     return Array.from(map.values()).sort((a, b) => {
-      // Parse dates consistently for sorting
       const dateA = new Date(a.date.replace(/\//g, "-"));
       const dateB = new Date(b.date.replace(/\//g, "-"));
       return dateB.getTime() - dateA.getTime();
     });
   }, [orders]);
 
-  // --- TAB 2: Product Analysis Logic (ABC Analysis mock) ---
+  // TAB 2: Phân tích sản phẩm (thống kê số lượng và doanh thu theo sản phẩm)
   const productAnalysis = useMemo(() => {
     const map = new Map<string, { id: string; name: string; qty: number; sales: number }>();
     orders.forEach((order) => {
@@ -87,18 +89,18 @@ const HistoryPage: React.FC = () => {
         entry.sales += item.unit_price * item.quantity;
       });
     });
+    // Sắp xếp theo doanh thu giảm dần
     return Array.from(map.values()).sort((a, b) => b.sales - a.sales);
   }, [orders]);
 
-  // Fetch orders from API
+  // Gọi API lấy đơn hàng khi đổi ngày
   useEffect(() => {
     const fetchOrders = async () => {
       try {
         setIsLoading(true);
         const ordersData = await getOrdersByDate(selectedDate);
-        // Normalize: only keep orders whose date in SERVER_ZONE equals selectedDate
+        // Lọc chỉ giữ đơn đúng ngày đã chọn (theo múi giờ VN)
         const toDateKey = (iso: string) => dayjs.tz(iso, SERVER_ZONE).format("YYYY-MM-DD");
-
         const filtered = ordersData.filter((o) => toDateKey(o.order_time) === selectedDate);
         setOrders(filtered);
       } catch (error) {
@@ -115,12 +117,14 @@ const HistoryPage: React.FC = () => {
     fetchOrders();
   }, [selectedDate]);
 
+  // Toggle mở rộng/thu gọn chi tiết đơn hàng
   const toggleOrderExpand = (id: string) => {
     setExpandedOrderId(expandedOrderId === id ? null : id);
   };
 
   return (
     <div className="h-full overflow-y-auto bg-gray-50 p-8">
+      {/* Header: Tiêu đề + chọn ngày */}
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-800">注文履歴・売上分析</h1>
         <div className="flex items-center gap-3">
@@ -134,7 +138,7 @@ const HistoryPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs: Báo cáo ngày / Phân tích sản phẩm */}
       <div className="mb-6 flex space-x-1 border-b border-gray-200">
         <button
           onClick={() => setActiveTab("daily")}
@@ -158,6 +162,7 @@ const HistoryPage: React.FC = () => {
         </button>
       </div>
 
+      {/* TAB 1: Báo cáo theo ngày */}
       {activeTab === "daily" && (
         <div className="space-y-6">
           {isLoading ? (
@@ -165,18 +170,20 @@ const HistoryPage: React.FC = () => {
               <Loading message="Loading orders..." />
             </div>
           ) : dailySummary.length === 0 ? (
+            // Trạng thái trống
             <div className="rounded-xl border border-gray-200 bg-white p-12 text-center shadow-sm">
               <FileText className="mx-auto mb-4 h-16 w-16 text-gray-300" />
               <p className="text-lg text-gray-500">No orders found for selected date</p>
               <p className="mt-2 text-sm text-gray-400">Select a different date to view orders</p>
             </div>
           ) : (
+            // Danh sách đơn hàng theo ngày
             dailySummary.map((day) => (
               <div
                 key={day.date}
                 className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
               >
-                {/* Daily Header */}
+                {/* Header tổng hợp ngày */}
                 <div className="flex flex-wrap items-center justify-between border-b border-gray-200 bg-gray-50 px-6 py-4">
                   <div>
                     <h3 className="flex items-center text-lg font-bold text-gray-800">
@@ -185,6 +192,7 @@ const HistoryPage: React.FC = () => {
                     </h3>
                     <span className="ml-7 text-sm text-gray-500">{day.count} 件の注文</span>
                   </div>
+                  {/* Tổng doanh thu theo loại */}
                   <div className="flex space-x-6 text-right">
                     <div>
                       <p className="text-xs text-gray-500">店内</p>
@@ -203,10 +211,11 @@ const HistoryPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Order List for that day */}
+                {/* Danh sách từng đơn hàng */}
                 <div className="divide-y divide-gray-100">
                   {day.orders.map((order: any, orderIndex: number) => (
                     <div key={order.order_id}>
+                      {/* Row đơn hàng (click để mở rộng) */}
                       <div
                         onClick={() => toggleOrderExpand(order.order_id)}
                         className="flex cursor-pointer items-center justify-between px-6 py-3 hover:bg-gray-50"
@@ -215,6 +224,7 @@ const HistoryPage: React.FC = () => {
                           <span className="font-mono text-sm text-gray-400">
                             {dayjs.tz(order.order_time, SERVER_ZONE).format("HH:mm")}
                           </span>
+                          {/* Badge loại đơn */}
                           <span
                             className={`rounded border px-2 py-0.5 text-xs ${
                               order.order_type === "eat-in"
@@ -240,7 +250,7 @@ const HistoryPage: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Expanded Details */}
+                      {/* Chi tiết đơn hàng (khi mở rộng) */}
                       {expandedOrderId === order.order_id && (
                         <div className="border-t border-gray-100 bg-gray-50 px-6 py-4 text-sm">
                           <ul className="mb-4 space-y-1">
@@ -266,6 +276,7 @@ const HistoryPage: React.FC = () => {
         </div>
       )}
 
+      {/* TAB 2: Phân tích sản phẩm */}
       {activeTab === "product" && (
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
           {isLoading ? (

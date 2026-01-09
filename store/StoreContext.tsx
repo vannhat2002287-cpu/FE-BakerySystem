@@ -1,3 +1,4 @@
+// Global Store - Quản lý state chung: products, inventory, cart, orders, time
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Product, Inventory, Order, CartItem, OrderType, PaymentMethod } from "../types";
 import { getProducts } from "../api/products";
@@ -6,43 +7,47 @@ import { createOrder } from "../api/orders";
 import { ApiError } from "../api/client";
 import toast from "react-hot-toast";
 
+// Định nghĩa kiểu dữ liệu cho Context
 interface StoreContextType {
-  products: Product[];
-  inventory: Inventory[];
-  orders: Order[];
-  cart: CartItem[];
-  isLoading: boolean;
-  addToCart: (product: Product) => void;
-  removeFromCart: (productId: string) => void;
-  updateCartQuantity: (productId: string, delta: number) => void;
-  clearCart: () => void;
+  products: Product[]; // Danh sách sản phẩm
+  inventory: Inventory[]; // Danh sách tồn kho
+  orders: Order[]; // Danh sách đơn hàng
+  cart: CartItem[]; // Giỏ hàng hiện tại
+  isLoading: boolean; // Đang tải dữ liệu
+  addToCart: (product: Product) => void; // Thêm vào giỏ
+  removeFromCart: (productId: string) => void; // Xóa khỏi giỏ
+  updateCartQuantity: (productId: string, delta: number) => void; // Cập nhật số lượng
+  clearCart: () => void; // Xóa giỏ hàng
   placeOrder: (
+    // Đặt đơn hàng
     orderType: OrderType,
     paymentMethod: PaymentMethod,
     receivedAmount: number
   ) => Promise<boolean>;
-  updateInventory: (productId: string, newQuantity: number) => void;
-  // Time Management
-  currentTime: Date;
-  setSimulationTime: (date: Date) => void;
-  resetSimulation: () => void;
-  isSimulationMode: boolean;
+  updateInventory: (productId: string, newQuantity: number) => void; // Cập nhật tồn kho
+  // Quản lý thời gian (simulation mode)
+  currentTime: Date; // Thời gian hiện tại
+  setSimulationTime: (date: Date) => void; // Đặt thời gian giả lập
+  resetSimulation: () => void; // Reset về thời gian thực
+  isSimulationMode: boolean; // Đang ở chế độ giả lập?
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
+// Provider component - bọc toàn bộ app
 export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  // State chính
   const [products, setProducts] = useState<Product[]>([]);
   const [inventory, setInventory] = useState<Inventory[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Time Management State
+  // State quản lý thời gian
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
   const [isSimulationMode, setIsSimulationMode] = useState<boolean>(false);
 
-  // Timer Effect
+  // Timer: cập nhật thời gian mỗi giây (chỉ khi không simulation)
   useEffect(() => {
     let timer: ReturnType<typeof setInterval>;
     if (!isSimulationMode) {
@@ -55,17 +60,19 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     };
   }, [isSimulationMode]);
 
+  // Bật chế độ giả lập thời gian
   const setSimulationTime = (date: Date) => {
     setIsSimulationMode(true);
     setCurrentTime(date);
   };
 
+  // Tắt giả lập, về thời gian thực
   const resetSimulation = () => {
     setIsSimulationMode(false);
     setCurrentTime(new Date());
   };
 
-  // Fetch products and inventory from API on mount
+  // Fetch products và inventory khi mount
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -91,18 +98,18 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     fetchData();
   }, []);
 
+  // Kiểm tra sản phẩm có quản lý tồn kho không (có entry trong inventory)
   const isStockManaged = (product: Product | undefined) => {
     if (!product) return false;
-    // Treat a product as stock-managed when there is an inventory entry for it.
-    // This allows drinks/alcohol to be inventory-tracked if an entry exists.
     return inventory.some((inv) => inv.product_id === product.product_id);
   };
 
+  // Thêm sản phẩm vào giỏ (kiểm tra tồn kho nếu có)
   const addToCart = (product: Product) => {
     setCart((prev) => {
       const existing = prev.find((item) => item.product_id === product.product_id);
       if (existing) {
-        // Check inventory limit ONLY if stock is managed
+        // Kiểm tra tồn kho nếu sản phẩm có quản lý stock
         if (isStockManaged(product)) {
           const stock = inventory.find((inv) => inv.product_id === product.product_id);
           if (stock && existing.quantity >= stock.current_quantity) {
@@ -118,20 +125,22 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     });
   };
 
+  // Xóa sản phẩm khỏi giỏ
   const removeFromCart = (productId: string) => {
     setCart((prev) => prev.filter((item) => item.product_id !== productId));
   };
 
+  // Cập nhật số lượng trong giỏ (+ hoặc -)
   const updateCartQuantity = (productId: string, delta: number) => {
     setCart((prev) => {
       return prev.map((item) => {
         if (item.product_id === productId) {
           const newQty = item.quantity + delta;
-          if (newQty <= 0) return item; // Don't remove, just floor at 1. Or allow remove? Let's floor at 1.
+          if (newQty <= 0) return item; // Không cho về 0
 
           const product = products.find((p) => p.product_id === productId);
 
-          // Check inventory ONLY if stock is managed
+          // Kiểm tra tồn kho nếu có quản lý
           if (product && isStockManaged(product)) {
             const stock = inventory.find((inv) => inv.product_id === productId);
             if (stock && newQty > stock.current_quantity) {
@@ -146,8 +155,10 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     });
   };
 
+  // Xóa toàn bộ giỏ hàng
   const clearCart = () => setCart([]);
 
+  // Cập nhật số lượng tồn kho local
   const updateInventory = (productId: string, newQuantity: number) => {
     setInventory((prev) =>
       prev.map((item) =>
@@ -162,6 +173,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     );
   };
 
+  // Đặt đơn hàng: gọi API, refresh inventory, clear cart
   const placeOrder = async (
     orderType: OrderType,
     paymentMethod: PaymentMethod,
@@ -170,28 +182,27 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (cart.length === 0) return false;
 
     try {
-      // Prepare order items for API
+      // Chuẩn bị items cho API
       const orderItems = cart.map((item) => ({
         product_id: item.product_id,
         quantity: item.quantity,
       }));
 
-      // Call API to create order
+      // Gọi API tạo đơn
       const newOrder = await createOrder(orderItems, orderType, paymentMethod, receivedAmount);
 
-      // Add order to local state
+      // Thêm vào state local
       setOrders((prev) => [newOrder, ...prev]);
 
-      // Refresh inventory from API to get updated stock
+      // Refresh inventory từ API
       try {
         const updatedInventory = await getAllInventory();
         setInventory(updatedInventory);
       } catch (error) {
         console.error("Failed to refresh inventory:", error);
-        // Continue even if inventory refresh fails
       }
 
-      // Clear cart
+      // Xóa giỏ hàng
       setCart([]);
       toast.success("注文が作成されました。");
       return true;
@@ -242,6 +253,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   );
 };
 
+// Hook để sử dụng Store trong components
 export const useStore = () => {
   const context = useContext(StoreContext);
   if (!context) throw new Error("useStore must be used within StoreProvider");
