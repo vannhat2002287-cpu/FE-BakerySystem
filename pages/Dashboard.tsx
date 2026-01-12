@@ -4,6 +4,7 @@
 
 // Trang Dashboard - hiển thị thống kê tổng quan
 import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useStore } from "@/store/StoreContext";
 import {
   BarChart,
@@ -27,6 +28,7 @@ import Loading from "@/components/Loading";
 
 const Dashboard: React.FC = () => {
   const { inventory, products } = useStore();
+  const navigate = useNavigate();
 
   // State quản lý dữ liệu dashboard
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
@@ -168,7 +170,10 @@ const Dashboard: React.FC = () => {
           {/* Thẻ KPI: Doanh thu, Số đơn, Đơn giá TB, Cảnh báo tồn kho */}
           <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
             {/* Doanh thu hôm nay */}
-            <div className="flex items-center rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+            <div
+              onClick={() => navigate("/history")}
+              className="hover:border-brand-200 flex cursor-pointer items-center rounded-xl border border-gray-100 bg-white p-6 shadow-sm transition-all hover:shadow-md"
+            >
               <div className="bg-brand-100 text-brand-600 mr-4 rounded-lg p-3">
                 <JapaneseYen className="h-8 w-8" />
               </div>
@@ -179,7 +184,10 @@ const Dashboard: React.FC = () => {
             </div>
 
             {/* Số đơn hàng */}
-            <div className="flex items-center rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+            <div
+              onClick={() => navigate("/history")}
+              className="flex cursor-pointer items-center rounded-xl border border-gray-100 bg-white p-6 shadow-sm transition-all hover:border-blue-200 hover:shadow-md"
+            >
               <div className="mr-4 rounded-lg bg-blue-100 p-3 text-blue-600">
                 <ShoppingBag className="h-8 w-8" />
               </div>
@@ -190,7 +198,10 @@ const Dashboard: React.FC = () => {
             </div>
 
             {/* Đơn giá trung bình */}
-            <div className="flex items-center rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+            <div
+              onClick={() => navigate("/history")}
+              className="flex cursor-pointer items-center rounded-xl border border-gray-100 bg-white p-6 shadow-sm transition-all hover:border-green-200 hover:shadow-md"
+            >
               <div className="mr-4 rounded-lg bg-green-100 p-3 text-green-600">
                 <TrendingUp className="h-8 w-8" />
               </div>
@@ -203,7 +214,10 @@ const Dashboard: React.FC = () => {
             </div>
 
             {/* Cảnh báo tồn kho thấp */}
-            <div className="flex items-center rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+            <div
+              onClick={() => navigate("/inventory")}
+              className="flex cursor-pointer items-center rounded-xl border border-gray-100 bg-white p-6 shadow-sm transition-all hover:border-red-200 hover:shadow-md"
+            >
               <div className="mr-4 rounded-lg bg-red-100 p-3 text-red-600">
                 <AlertTriangle className="h-8 w-8" />
               </div>
@@ -280,7 +294,10 @@ const Dashboard: React.FC = () => {
           </div>
 
           {/* Bảng xếp hạng sản phẩm bán chạy */}
-          <div className="mb-8 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+          <div
+            onClick={() => navigate("/")}
+            className="hover:border-brand-200 mb-8 cursor-pointer overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm transition-all hover:shadow-md"
+          >
             <div className="flex items-center justify-between border-b border-gray-100 bg-white px-6 py-4">
               <h3 className="text-lg font-bold text-gray-700">人気商品ランキング</h3>
             </div>
