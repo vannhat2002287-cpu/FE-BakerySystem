@@ -29,6 +29,8 @@ const HistoryPage: React.FC = () => {
   });
   const [activeTab, setActiveTab] = useState<"daily" | "product">("daily");
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  // Filter theo loại đơn hàng: all, eat-in, takeaway
+  const [orderTypeFilter, setOrderTypeFilter] = useState<"all" | "eat-in" | "takeaway">("all");
 
   // TAB 1: Tổng hợp đơn hàng theo ngày
   const dailySummary = useMemo(() => {
@@ -44,8 +46,14 @@ const HistoryPage: React.FC = () => {
       }
     >();
 
+    // Lọc đơn hàng theo loại nếu có filter
+    const filteredOrders =
+      orderTypeFilter === "all"
+        ? orders
+        : orders.filter((order) => order.order_type === orderTypeFilter);
+
     // Nhóm đơn hàng theo ngày
-    orders.forEach((order) => {
+    filteredOrders.forEach((order) => {
       const dateStr = dayjs.tz(order.order_time, SERVER_ZONE).format("YYYY-MM-DD");
 
       if (!map.has(dateStr)) {
@@ -73,7 +81,7 @@ const HistoryPage: React.FC = () => {
       const dateB = new Date(b.date.replace(/\//g, "-"));
       return dateB.getTime() - dateA.getTime();
     });
-  }, [orders]);
+  }, [orders, orderTypeFilter]);
 
   // TAB 2: Phân tích sản phẩm (thống kê số lượng và doanh thu theo sản phẩm)
   const productAnalysis = useMemo(() => {
@@ -169,6 +177,41 @@ const HistoryPage: React.FC = () => {
       {/* TAB 1: Báo cáo theo ngày */}
       {activeTab === "daily" && (
         <div className="space-y-6">
+          {/* Sub-tabs: Lọc theo loại đơn hàng */}
+          <div className="flex items-center gap-2">
+            <span className="mr-2 text-sm text-gray-500">注文種類:</span>
+            <button
+              onClick={() => setOrderTypeFilter("all")}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                orderTypeFilter === "all"
+                  ? "bg-brand-600 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              すべて
+            </button>
+            <button
+              onClick={() => setOrderTypeFilter("eat-in")}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                orderTypeFilter === "eat-in"
+                  ? "bg-blue-600 text-white"
+                  : "border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+              }`}
+            >
+              店内
+            </button>
+            <button
+              onClick={() => setOrderTypeFilter("takeaway")}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                orderTypeFilter === "takeaway"
+                  ? "bg-orange-600 text-white"
+                  : "border border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100"
+              }`}
+            >
+              持ち帰り
+            </button>
+          </div>
+
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loading message="Loading orders..." />
