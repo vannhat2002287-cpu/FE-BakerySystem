@@ -1,3 +1,7 @@
+/**
+ * @authors Huynh and Hue
+ */
+
 // Utilities xử lý datetime - Timezone: Asia/Ho_Chi_Minh (GMT+7)
 
 export const TIMEZONE = "Asia/Ho_Chi_Minh";

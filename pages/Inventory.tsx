@@ -1,3 +1,7 @@
+/**
+ * @authors Huynh and Hue
+ */
+
 // Trang quản lý tồn kho và yêu cầu nhập hàng từ nhà máy
 import React, { useMemo, useState, useEffect } from "react";
 import { useStore } from "@/store/StoreContext";

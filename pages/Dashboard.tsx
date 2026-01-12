@@ -1,3 +1,7 @@
+/**
+ * @authors Huynh and Hue
+ */
+
 // Trang Dashboard - hiển thị thống kê tổng quan
 import React, { useState, useEffect, useMemo } from "react";
 import { useStore } from "@/store/StoreContext";

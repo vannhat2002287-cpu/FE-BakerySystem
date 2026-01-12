@@ -1,3 +1,7 @@
+/**
+ * @authors Huynh and Hue
+ */
+
 import React, { useState, useEffect, useMemo } from "react";
 import { Search, Grid, Trash2, Plus, Minus, Clock } from "lucide-react";
 import { useStore } from "@/store/StoreContext";

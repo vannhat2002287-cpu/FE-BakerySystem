@@ -1,3 +1,7 @@
+/**
+ * @authors Huynh and Hue
+ */
+
 // Component Loading - hiển thị trạng thái đang tải
 import React from "react";
 

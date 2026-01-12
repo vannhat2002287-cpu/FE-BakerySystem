@@ -1,3 +1,7 @@
+/**
+ * @authors Huynh and Hue
+ */
+
 // Định nghĩa các kiểu dữ liệu chung cho ứng dụng
 
 // Loại sản phẩm: bánh, đồ uống, rượu, hàng hóa khác

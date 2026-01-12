@@ -1,3 +1,7 @@
+/**
+ * @authors Huynh and Hue
+ */
+
 // Layout chính của ứng dụng - bao gồm Sidebar và vùng nội dung
 import React from "react";
 import { NavLink, useLocation } from "react-router-dom";

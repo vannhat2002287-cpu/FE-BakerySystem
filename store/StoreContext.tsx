@@ -1,3 +1,7 @@
+/**
+ * @authors Huynh and Hue
+ */
+
 // Global Store - Quản lý state chung: products, inventory, cart, orders, time
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Product, Inventory, Order, CartItem, OrderType, PaymentMethod } from "../types";

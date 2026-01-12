@@ -1,4 +1,5 @@
 /**
+ * @authors Huynh and Hue
  * App.tsx - Component gốc của ứng dụng
  * Thiết lập routing, providers và layout chung
  */

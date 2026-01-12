@@ -1,3 +1,7 @@
+/**
+ * @authors Huynh and Hue
+ */
+
 // Class lỗi API - lưu status code và response
 export class ApiError extends Error {
   constructor(

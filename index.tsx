@@ -1,4 +1,5 @@
 /**
+ * @authors Huynh and Hue
  * index.tsx - Entry point của ứng dụng React
  * Khởi tạo và render App component vào DOM
  */

@@ -1,3 +1,7 @@
+/**
+ * @authors Huynh and Hue
+ */
+
 // Cấu hình toast notification (thông báo popup)
 import { ToasterProps } from "react-hot-toast";
 

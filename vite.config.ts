@@ -1,4 +1,5 @@
 /**
+ * @authors Huynh and Hue
  * vite.config.ts - Cấu hình Vite build tool
  */
 

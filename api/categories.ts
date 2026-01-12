@@ -1,3 +1,7 @@
+/**
+ * @authors Huynh and Hue
+ */
+
 import { apiRequest } from "./client";
 import { buildApiUrl, API_ENDPOINTS } from "./config";
 import { Category } from "../types";
