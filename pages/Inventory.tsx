@@ -5,7 +5,7 @@
 // Trang quản lý tồn kho và yêu cầu nhập hàng từ nhà máy
 import React, { useMemo, useState, useEffect } from "react";
 import { useStore } from "@/store/StoreContext";
-import { Edit2, Save, X, Factory, PackageCheck, ClipboardList } from "lucide-react";
+import { X, Factory, PackageCheck, ClipboardList } from "lucide-react";
 import {
   getAllFactoryRequests,
   createFactoryRequest,
@@ -51,10 +51,6 @@ const InventoryPage: React.FC = () => {
     [categories]
   );
 
-  // ===== State chỉnh sửa tồn kho (Inline Edit) =====
-  const [editingId, setEditingId] = useState<string | null>(null); // ID sản phẩm đang sửa
-  const [editValue, setEditValue] = useState<number>(0); // Giá trị tạm
-
   // ===== State yêu cầu nhà máy =====
   const [factoryRequests, setFactoryRequests] = useState<FactoryRequest[]>([]); // Danh sách yêu cầu
   const [isLoadingFactoryRequests, setIsLoadingFactoryRequests] = useState<boolean>(true);
@@ -88,12 +84,6 @@ const InventoryPage: React.FC = () => {
     });
   }, [products, inventory]);
 
-  // Bắt đầu chỉnh sửa inline
-  const startEdit = (id: string, current: number) => {
-    setEditingId(id);
-    setEditValue(current);
-  };
-
   useEffect(() => {
     const fetchFactoryRequests = async () => {
       try {
@@ -113,27 +103,6 @@ const InventoryPage: React.FC = () => {
 
     fetchFactoryRequests();
   }, []);
-
-  // Lưu chỉnh sửa và gọi API
-  const saveEdit = async (id: string) => {
-    try {
-      await adjustInventory(id, editValue);
-      // Refresh inventory from StoreContext (it will fetch from API)
-      updateInventory(id, editValue);
-      setEditingId(null);
-    } catch (error) {
-      console.error("Failed to update inventory:", error);
-      if (error instanceof ApiError) {
-        const errorMessage =
-          typeof error.response === "string"
-            ? error.response
-            : error.response?.message || error.message;
-        toast.error(`在庫の更新に失敗しました: ${errorMessage}`);
-      } else {
-        toast.error("サーバーに接続できません。再度お試しください。");
-      }
-    }
-  };
 
   // Mở modal tạo yêu cầu mới
   const openRequestModal = (
@@ -311,7 +280,6 @@ const InventoryPage: React.FC = () => {
                   <th className="px-6 py-4">在庫</th>
                   <th className="px-6 py-4">最終更新</th>
                   <th className="px-6 py-4">工場依頼</th>
-                  <th className="px-6 py-4">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -343,20 +311,9 @@ const InventoryPage: React.FC = () => {
                       </td>
 
                       <td className="px-6 py-4">
-                        {editingId === item.product_id ? (
-                          <div className="flex items-center">
-                            <input
-                              type="number"
-                              value={editValue}
-                              onChange={(e) => setEditValue(parseInt(e.target.value) || 0)}
-                              className="border-brand-300 ring-brand-500 w-20 rounded border p-1 text-center ring-1 outline-none"
-                            />
-                          </div>
-                        ) : (
-                          <span className={`font-bold ${isLow ? "text-red-600" : "text-gray-700"}`}>
-                            {item.stock}
-                          </span>
-                        )}
+                        <span className={`font-bold ${isLow ? "text-red-600" : "text-gray-700"}`}>
+                          {item.stock}
+                        </span>
                       </td>
 
                       <td className="px-6 py-4 text-xs text-gray-400">
@@ -416,32 +373,6 @@ const InventoryPage: React.FC = () => {
                           })()
                         )}
                       </td>
-
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {editingId === item.product_id ? (
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => saveEdit(item.product_id)}
-                              className="rounded p-1 text-green-600 hover:bg-green-50"
-                            >
-                              <Save className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => setEditingId(null)}
-                              className="rounded p-1 text-gray-400 hover:bg-gray-100"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => startEdit(item.product_id, item.stock)}
-                            className="text-brand-600 hover:text-brand-800 flex items-center text-xs font-medium"
-                          >
-                            <Edit2 className="mr-1 h-3 w-3" /> 調整
-                          </button>
-                        )}
-                      </td>
                     </tr>
                   );
                 })}
@@ -449,96 +380,6 @@ const InventoryPage: React.FC = () => {
             </table>
           </div>
         </div>
-
-        {/* ===== Cột Phải: Danh sách Lịch sử Yêu cầu (Request List) - Ẩn tạm để mở rộng sau ===== */}
-        {/* <div className="xl:col-span-1">
-          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
-              <div className="flex items-center font-semibold text-gray-800">
-                <ClipboardList className="mr-2 h-4 w-4" />
-                工場依頼一覧
-              </div>
-              <span className="text-xs text-gray-500">徒歩約5分で納品</span>
-            </div>
-
-            <div className="max-h-[520px] space-y-3 overflow-y-auto p-4">
-              {isLoadingFactoryRequests ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loading size="sm" message="Loading requests..." />
-                </div>
-              ) : factoryRequests.length === 0 ? (
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
-                  依頼はまだありません。
-                  <br />
-                  在庫が基準値以下になると「工場へ依頼」ボタンが有効になります。
-                </div>
-              ) : (
-                factoryRequests.map((req) => (
-                  <div
-                    key={req.request_id}
-                    className="rounded-xl border border-gray-200 p-4 transition hover:bg-gray-50"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-sm font-semibold text-gray-800">
-                          {req.product_name}
-                        </div>
-                        <div className="mt-1 text-xs text-gray-500">
-                          数量:{" "}
-                          <span className="font-semibold text-gray-700">
-                            {req.request_quantity}
-                          </span>
-                        </div>
-                        <div className="mt-1 text-xs text-gray-500">
-                          依頼: {formatJa(req.created_at)}
-                        </div>
-                        {req.note && (
-                          <div className="mt-2 text-xs text-gray-500">メモ: {req.note}</div>
-                        )}
-                      </div>
-
-                      <div className="text-xs">
-                        {req.status === "PENDING" && (
-                          <span className="rounded border border-orange-200 bg-orange-50 px-2 py-1 text-orange-700">
-                            依頼中
-                          </span>
-                        )}
-                        {req.status === "DELIVERED" && (
-                          <span className="rounded border border-green-200 bg-green-50 px-2 py-1 text-green-700">
-                            納品済
-                          </span>
-                        )}
-                        {req.status === "CANCELLED" && (
-                          <span className="rounded border border-gray-200 bg-gray-100 px-2 py-1 text-gray-500">
-                            キャンセル
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {req.status === "PENDING" && (
-                      <div className="mt-3 flex gap-2">
-                        <button
-                          onClick={() => markDeliveredAndApplyStock(req)}
-                          className="inline-flex flex-1 items-center justify-center rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs font-semibold text-green-700 transition hover:bg-green-100"
-                        >
-                          <PackageCheck className="mr-2 h-4 w-4" />
-                          受領（在庫に反映）
-                        </button>
-                        <button
-                          onClick={() => cancelFactoryRequest(req.request_id)}
-                          className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-600 transition hover:bg-gray-100"
-                        >
-                          キャンセル
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div> */}
       </div>
 
       {/* ===== Modal Tạo Yêu cầu Mới ===== */}
