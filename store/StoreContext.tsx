@@ -208,7 +208,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
       // Xóa giỏ hàng
       setCart([]);
-      toast.success("注文が完了されました。");
+      toast.success("ご会計が完了されました。");
       return true;
     } catch (error) {
       console.error("Failed to place order:", error);
