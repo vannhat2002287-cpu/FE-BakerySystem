@@ -6,7 +6,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Product, Inventory, Order, CartItem, OrderType, PaymentMethod } from "../types";
 import { getProducts } from "../api/products";
-import { getAllInventory } from "../api/inventory";
+import { getAllInventory, getCurrentBusinessDate } from "../api/inventory";
 import { createOrder } from "../api/orders";
 import { ApiError } from "../api/client";
 import toast from "react-hot-toast";
@@ -29,11 +29,14 @@ interface StoreContextType {
     receivedAmount: number
   ) => Promise<boolean>;
   updateInventory: (productId: string, newQuantity: number) => void; // Cập nhật tồn kho
+  refreshInventory: () => Promise<void>; // Refresh inventory từ API
   // Quản lý thời gian (simulation mode)
   currentTime: Date; // Thời gian hiện tại
   setSimulationTime: (date: Date) => void; // Đặt thời gian giả lập
   resetSimulation: () => void; // Reset về thời gian thực
   isSimulationMode: boolean; // Đang ở chế độ giả lập?
+  // Quản lý ngày kinh doanh
+  businessDate: string; // Ngày kinh doanh hiện tại (YYYY-MM-DD)
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -50,6 +53,9 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   // State quản lý thời gian
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
   const [isSimulationMode, setIsSimulationMode] = useState<boolean>(false);
+
+  // State quản lý ngày kinh doanh
+  const [businessDate] = useState<string>(getCurrentBusinessDate());
 
   // Timer: cập nhật thời gian mỗi giây (chỉ khi không simulation)
   useEffect(() => {
@@ -177,6 +183,16 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     );
   };
 
+  // Refresh inventory từ API
+  const refreshInventory = async () => {
+    try {
+      const updatedInventory = await getAllInventory();
+      setInventory(updatedInventory);
+    } catch (error) {
+      console.error("Failed to refresh inventory:", error);
+    }
+  };
+
   // Đặt đơn hàng: gọi API, refresh inventory, clear cart
   const placeOrder = async (
     orderType: OrderType,
@@ -246,10 +262,12 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         clearCart,
         placeOrder,
         updateInventory,
+        refreshInventory,
         currentTime,
         setSimulationTime,
         resetSimulation,
         isSimulationMode,
+        businessDate,
       }}
     >
       {children}

@@ -1,18 +1,18 @@
 /**
  * @authors Huynh and Hue
+ * @optimized_by Gemini (UI/UX)
  */
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Search, Grid, Trash2, Plus, Minus, Clock } from "lucide-react";
+import { Search, Grid, Trash2, Plus, Minus, Clock, UtensilsCrossed, Receipt } from "lucide-react";
 import { useStore } from "@/store/StoreContext";
 import { Product, OrderType, PaymentMethod, Category } from "@/types";
 import { getCategories } from "@/api/categories";
 import toast from "react-hot-toast";
 import Loading from "@/components/Loading";
 
-// Component chính cho giao diện POS (Point of Sale) - hệ thống bán hàng tại quầy
+// Component chính cho màn hình bán hàng POS
 const POS: React.FC = () => {
-  // Lấy dữ liệu từ store (context) bao gồm sản phẩm, kho hàng, giỏ hàng, v.v.
   const {
     products,
     inventory,
@@ -26,67 +26,73 @@ const POS: React.FC = () => {
     currentTime,
   } = useStore();
 
-  // Các state cục bộ cho tìm kiếm, danh mục, loại đơn hàng, v.v.
-  const [searchQuery, setSearchQuery] = useState(""); // Từ khóa tìm kiếm sản phẩm
-  const [selectedCategory, setSelectedCategory] = useState<string>("all"); // Danh mục được chọn
-  const [orderType, setOrderType] = useState<OrderType>("takeaway"); // Loại đơn hàng: takeaway hoặc eat-in
-  const [categories, setCategories] = useState<Category[]>([]); // Danh sách danh mục sản phẩm
+  // Từ khóa tìm kiếm sản phẩm
+  const [searchQuery, setSearchQuery] = useState("");
+  // Danh mục sản phẩm đang chọn
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  // Loại đơn hàng: mang về hoặc ăn tại chỗ
+  const [orderType, setOrderType] = useState<OrderType>("takeaway");
+  // Danh sách các danh mục sản phẩm
+  const [categories, setCategories] = useState<Category[]>([]);
 
-  // State cho modal thanh toán
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false); // Có mở modal thanh toán không
-  const paymentMethod: PaymentMethod = "cash"; // Phương thức thanh toán mặc định là tiền mặt
-  const [isProcessing, setIsProcessing] = useState(false); // Đang xử lý thanh toán không
+  // Trạng thái mở modal thanh toán
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  // Phương thức thanh toán (mặc định: tiền mặt)
+  const paymentMethod: PaymentMethod = "cash";
+  // Trạng thái đang xử lý thanh toán
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  // Logic liên quan đến thời gian: kiểm tra giờ cho rượu và ăn tại chỗ
-  const currentHour = currentTime.getHours(); // Giờ hiện tại
-  const currentMinutes = currentTime.getMinutes(); // Phút hiện tại
-  const ALCOHOL_START_HOUR = 17; // Giờ bắt đầu bán rượu (17:00)
-  const isAlcoholAllowed = currentTime.getHours() >= ALCOHOL_START_HOUR; // Cho phép bán rượu chưa
-  const isEatInAllowed = currentHour < 20 || (currentHour === 20 && currentMinutes < 30); // Cho phép ăn tại chỗ (trước 20:30)
+  // Giờ hiện tại và các điều kiện bán hàng đặc biệt
+  const currentHour = currentTime.getHours();
+  const currentMinutes = currentTime.getMinutes();
+  // Giờ bắt đầu cho phép bán đồ uống có cồn
+  const ALCOHOL_START_HOUR = 17;
+  // Có được phép bán đồ uống có cồn không
+  const isAlcoholAllowed = currentTime.getHours() >= ALCOHOL_START_HOUR;
+  // Có được phép chọn ăn tại chỗ không (trước 20:30)
+  const isEatInAllowed = currentHour < 20 || (currentHour === 20 && currentMinutes < 30);
 
-  // useEffect: Lấy danh sách danh mục khi component mount
+  // Lấy danh sách danh mục sản phẩm khi load trang
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const categoriesData = await getCategories(); // Gọi API lấy danh mục
-        setCategories(categoriesData); // Lưu vào state
+        const categoriesData = await getCategories();
+        setCategories(categoriesData);
       } catch (error) {
-        console.error("Failed to fetch categories:", error); // Log lỗi nếu có
+        console.error("Failed to fetch categories:", error);
       }
     };
     fetchCategories();
   }, []);
 
-  // useEffect: Tự động chuyển loại đơn hàng về takeaway nếu không cho phép eat-in
+  // Nếu hết giờ ăn tại chỗ thì tự động chuyển sang mang về
   useEffect(() => {
     if (!isEatInAllowed && orderType === "eat-in") {
       setOrderType("takeaway");
     }
   }, [isEatInAllowed, orderType]);
 
-  // State dẫn xuất: Lọc sản phẩm dựa trên tìm kiếm và danh mục
+  // Lọc sản phẩm theo từ khóa tìm kiếm và danh mục
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
-      const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()); // Khớp từ khóa tìm kiếm
-      const matchesCategory = selectedCategory === "all" || p.category_id === selectedCategory; // Khớp danh mục
+      const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCategory = selectedCategory === "all" || p.category_id === selectedCategory;
       return matchesSearch && matchesCategory;
     });
   }, [products, searchQuery, selectedCategory]);
 
-  // Tính tổng tiền và số lượng sản phẩm trong giỏ
-  const totalAmount = cart.reduce((sum, item) => sum + item.price * item.quantity, 0); // Tổng tiền
-  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0); // Tổng số lượng
+  // Tổng tiền và tổng số lượng sản phẩm trong giỏ hàng
+  const totalAmount = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  // Hàm xử lý khi click vào sản phẩm
+  // Xử lý khi click vào sản phẩm để thêm vào giỏ hàng
   const handleProductClick = (product: Product) => {
-    // Kiểm tra sản phẩm có phải đồ uống có cồn không (dựa trên nhiều tiêu chí để tránh sót)
     const isAlcoholic =
       product.category_id === "c5" ||
       product.type === "alcohol" ||
       product.is_alcoholic === true ||
       String(product.is_alcoholic) === "true";
 
-    // Nếu là rượu và chưa đến giờ bán, hiển thị lỗi
     if (isAlcoholic && !isAlcoholAllowed) {
       toast.error(
         `アルコール類は${ALCOHOL_START_HOUR}:00以降のみ販売可能です。(現在: ${currentTime.toLocaleTimeString([], { timeZone: "Asia/Ho_Chi_Minh" })})`
@@ -94,49 +100,46 @@ const POS: React.FC = () => {
       return;
     }
 
-    // Kiểm tra kho hàng nếu có bản ghi tồn kho cho sản phẩm (áp dụng với cả drink/alcohol khi có inventory)
     const inv = inventory.find((i) => i.product_id === product.product_id);
     if (inv && inv.current_quantity <= 0) {
-      toast.error("在庫切れです。"); // Lỗi hết hàng
+      toast.error("在庫切れです。");
       return;
     }
-    addToCart(product); // Thêm vào giỏ
+    addToCart(product);
   };
 
-  // Hàm xử lý thanh toán
+  // Xử lý khi bấm nút thanh toán
   const handleCheckout = async () => {
-    setIsProcessing(true); // Bắt đầu xử lý
-    const received = totalAmount; // Số tiền nhận (bằng tổng tiền vì chỉ có tiền mặt)
+    setIsProcessing(true);
+    const received = totalAmount;
 
     try {
-      // Gửi yêu cầu đặt hàng. Nếu server lỗi, sẽ catch
       const success = await placeOrder(orderType, paymentMethod, received);
       if (success) {
-        setIsPaymentModalOpen(false); // Đóng modal
-        // 注文作成の成功メッセージは StoreContext 側で表示します。
+        setIsPaymentModalOpen(false);
       }
     } catch (error: any) {
-      // Hiển thị lỗi từ server để debug
       const serverMessage = error.response?.data?.message || error.message;
       console.error("Payment failed:", serverMessage);
       toast.error(`決済エラー: ${serverMessage}`);
     } finally {
-      setIsProcessing(false); // Kết thúc xử lý
+      setIsProcessing(false);
     }
   };
 
-  // Render giao diện
   return (
-    <div className="flex h-full">
-      {/* Bên trái: Danh sách sản phẩm */}
-      <div className="flex h-full flex-1 flex-col overflow-hidden bg-gray-50">
-        {/* Header: Tìm kiếm và danh mục */}
-        <div className="z-10 border-b border-gray-200 bg-white p-4 shadow-sm">
+    <div className="flex h-full bg-slate-50 font-sans text-slate-800">
+      {/* LEFT SIDE: Products - Khu vực hiển thị danh sách sản phẩm */}
+      <div className="flex h-full flex-1 flex-col overflow-hidden">
+        {/* Header - Tiêu đề, đồng hồ, tìm kiếm, chọn danh mục */}
+        <div className="z-10 border-b border-slate-200 bg-white px-6 py-4 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-gray-800">商品一覧</h2>{" "}
-            {/* Tiêu đề danh sách sản phẩm */}
-            <div className="bg-brand-50 text-brand-700 border-brand-100 flex items-center rounded-full border px-3 py-1 text-sm font-bold">
-              <Clock className="mr-2 h-4 w-4" /> {/* Icon đồng hồ */}
+            <h2 className="flex items-center gap-2 text-2xl font-bold text-slate-800">
+              <UtensilsCrossed className="h-6 w-6 text-orange-600" />
+              商品一覧
+            </h2>
+            <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-4 py-1.5 text-sm font-semibold text-slate-600">
+              <Clock className="h-4 w-4 text-orange-500" />
               {currentTime.toLocaleTimeString("ja-JP", {
                 hour: "2-digit",
                 minute: "2-digit",
@@ -146,130 +149,124 @@ const POS: React.FC = () => {
             </div>
           </div>
 
-          {/* Ô tìm kiếm */}
-          <div className="mb-4 flex space-x-4">
+          <div className="mb-4 flex gap-4">
             <div className="relative flex-1">
-              <Search className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400" />{" "}
-              {/* Icon tìm kiếm */}
+              <Search className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
-                placeholder="商品を検索..." // Placeholder tìm kiếm
-                className="focus:ring-brand-500 w-full rounded-lg border border-gray-300 py-2 pr-4 pl-10 outline-none focus:border-transparent focus:ring-2"
+                placeholder="商品を検索..."
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pr-4 pl-10 text-slate-700 transition-all outline-none focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-200"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)} // Cập nhật từ khóa tìm kiếm
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
           </div>
 
-          {/* Nút chọn danh mục */}
-          <div className="scrollbar-hide flex space-x-2 overflow-x-auto pb-2">
+          <div className="scrollbar-hide flex space-x-2 overflow-x-auto pb-1">
             <button
-              onClick={() => setSelectedCategory("all")} // Chọn tất cả
-              className={`rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
+              onClick={() => setSelectedCategory("all")}
+              className={`rounded-full px-5 py-2 text-sm font-bold transition-all ${
                 selectedCategory === "all"
-                  ? "bg-brand-600 text-white shadow-md"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  ? "bg-slate-800 text-white shadow-lg"
+                  : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
               }`}
             >
-              すべて {/* Tất cả */}
+              すべて
             </button>
-            {categories.map(
-              (
-                cat // Render nút cho từng danh mục
-              ) => (
-                <button
-                  key={cat.category_id}
-                  onClick={() => setSelectedCategory(cat.category_id)} // Chọn danh mục cụ thể
-                  className={`rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
-                    selectedCategory === cat.category_id
-                      ? "bg-brand-600 text-white shadow-md"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}
-                >
-                  {cat.name} {/* Tên danh mục */}
-                </button>
-              )
-            )}
+            {categories.map((cat) => (
+              <button
+                key={cat.category_id}
+                onClick={() => setSelectedCategory(cat.category_id)}
+                className={`rounded-full px-5 py-2 text-sm font-bold whitespace-nowrap transition-all ${
+                  selectedCategory === cat.category_id
+                    ? "bg-orange-600 text-white shadow-lg shadow-orange-200"
+                    : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                {cat.name}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Lưới sản phẩm */}
-        <div className="flex-1 overflow-y-auto p-4">
-          {isLoading ? ( // Nếu đang tải, hiển thị loading
+        {/* Product Grid - Lưới hiển thị các sản phẩm */}
+        <div className="flex-1 overflow-y-auto bg-slate-50 p-6">
+          {isLoading ? (
             <div className="flex h-full items-center justify-center">
-              <Loading message="Loading products..." />
+              <Loading message="商品を読み込み中..." />
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4 pb-20 md:grid-cols-3 lg:grid-cols-4">
-              {" "}
-              {/* Grid responsive */}
+            <div className="grid grid-cols-2 gap-4 pb-20 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {filteredProducts.map((product) => {
-                // Tính kho hàng và trạng thái sản phẩm
                 const invEntry = inventory.find((i) => i.product_id === product.product_id);
                 const hasInventory = !!invEntry;
-                const stock = invEntry?.current_quantity ?? 0; // Số lượng kho (0 nếu không có bản ghi)
-                // Sửa logic isAlcoholic để nhất quán với handleProductClick
+                const stock = invEntry?.current_quantity ?? 0;
                 const isAlcoholic =
                   product.category_id === "c5" ||
                   product.type === "alcohol" ||
                   product.is_alcoholic === true ||
-                  String(product.is_alcoholic) === "true"; // Là rượu không
-                const isOutOfStock = hasInventory && stock <= 0; // Hết hàng chỉ khi có bản ghi tồn kho và =0
-                const isAlcoholRestricted = isAlcoholic && !isAlcoholAllowed; // Bị hạn chế bán rượu không
+                  String(product.is_alcoholic) === "true";
+
+                const isAlcoholRestricted = isAlcoholic && !isAlcoholAllowed;
+                const isOutOfStock = hasInventory && stock <= 0;
+                const isDisabled = isOutOfStock || isAlcoholRestricted;
 
                 return (
                   <div
                     key={product.product_id}
-                    onClick={() =>
-                      !isOutOfStock && !isAlcoholRestricted && handleProductClick(product)
-                    } // Click để thêm vào giỏ (nếu hợp lệ)
-                    className={`relative cursor-pointer overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-transform active:scale-95 ${
-                      isOutOfStock || isAlcoholRestricted
-                        ? "cursor-not-allowed opacity-60 grayscale" // Vô hiệu hóa nếu hết hàng hoặc bị hạn chế
-                        : "hover:border-brand-300 hover:shadow-md"
-                    } `}
+                    onClick={() => !isDisabled && handleProductClick(product)}
+                    className={`group relative flex flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition-all ${
+                      isDisabled
+                        ? "cursor-not-allowed border-slate-100 opacity-60 grayscale"
+                        : "cursor-pointer border-slate-100 hover:-translate-y-1 hover:border-orange-300 hover:shadow-lg"
+                    }`}
                   >
-                    <div className="relative aspect-square bg-gray-100">
+                    <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
                       <img
-                        src={product.image_url} // Hình ảnh sản phẩm
+                        src={product.image_url}
                         alt={product.name}
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                       />
-                      {/* Hiển thị kho nếu tồn kho có bản ghi (áp dụng cho cả drink/alcohol khi có inventory) */}
-                      {hasInventory && (
-                        <span
-                          className={`absolute top-2 right-2 z-10 rounded-full px-2 py-1 text-xs font-bold shadow-sm ${
-                            stock <= 0
-                              ? "bg-gray-300 text-gray-700"
-                              : stock <= 5
-                                ? "bg-red-500 text-white"
-                                : "border border-gray-200 bg-white/80 text-gray-800 backdrop-blur-sm"
-                          }`}
-                        >
-                          {stock <= 0 ? `在庫: 0` : stock <= 5 ? `残り ${stock}` : `在庫: ${stock}`}
-                        </span>
-                      )}
-                      {/* Overlay nếu bị hạn chế bán rượu */}
+                      <span
+                        className={`absolute top-2 right-2 z-10 rounded-full px-2.5 py-1 text-xs font-bold shadow-sm backdrop-blur-md ${
+                          stock <= 0
+                            ? "bg-slate-800 text-white"
+                            : stock <= 5
+                              ? "bg-red-500 text-white"
+                              : "bg-white/90 text-slate-800"
+                        }`}
+                      >
+                        {stock <= 0 ? "在庫なし" : stock <= 5 ? `残り ${stock}` : `${stock}`}
+                      </span>
                       {isAlcoholRestricted && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                          <span className="text-sm font-bold text-white">17:00~ 販売</span>{" "}
-                          {/* Chỉ bán từ 17:00 */}
+                        <div className="absolute inset-0 flex items-center justify-center bg-slate-900/60 backdrop-blur-[2px]">
+                          <span className="rounded-md border border-white/30 bg-black/40 px-3 py-1 text-sm font-bold text-white">
+                            17:00~ 販売
+                          </span>
                         </div>
                       )}
-                      {/* Overlay nếu hết hàng */}
                       {isOutOfStock && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                          <span className="text-lg font-bold text-white">SOLD OUT</span>{" "}
-                          {/* Hết hàng */}
+                        <div className="absolute inset-0 flex items-center justify-center bg-slate-900/60 backdrop-blur-[2px]">
+                          <span className="rotate-[-12deg] rounded-md border-2 border-white px-4 py-1 text-xl font-black tracking-widest text-white uppercase">
+                            Sold Out
+                          </span>
                         </div>
                       )}
                     </div>
-                    <div className="p-3">
-                      <h3 className="truncate text-sm font-bold text-gray-800">{product.name}</h3>{" "}
-                      {/* Tên sản phẩm */}
-                      <p className="text-brand-600 mt-1 font-bold">
-                        ¥{product.price.toLocaleString()} {/* Giá sản phẩm */}
-                      </p>
+                    <div className="flex flex-1 flex-col p-4">
+                      <h3 className="mb-1 line-clamp-2 text-sm font-bold text-slate-700">
+                        {product.name}
+                      </h3>
+                      <div className="mt-auto flex items-end justify-between">
+                        <p className="text-lg font-bold text-orange-600">
+                          ¥{product.price.toLocaleString()}
+                        </p>
+                        {!isDisabled && (
+                          <div className="rounded-full bg-orange-50 p-1.5 text-orange-600 opacity-0 transition-opacity group-hover:opacity-100">
+                            <Plus className="h-4 w-4" />
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -279,181 +276,162 @@ const POS: React.FC = () => {
         </div>
       </div>
 
-      {/* Bên phải: Giỏ hàng và thanh toán */}
-      <div className="z-20 flex h-full w-96 flex-col border-l border-gray-200 bg-white shadow-lg">
-        {/* Header giỏ hàng */}
-        <div className="border-b border-gray-200 bg-gray-50 p-4">
-          {/* Nút chọn loại đơn hàng */}
-          <div className="mb-4 flex rounded-lg bg-gray-200 p-1">
+      {/* RIGHT SIDE: Cart - Khu vực giỏ hàng và thanh toán */}
+      <div className="z-20 flex h-full w-96 flex-col border-l border-slate-200 bg-white shadow-2xl">
+        {/* Order Type Selector - Chọn loại đơn hàng: ăn tại chỗ hay mang về */}
+        <div className="border-b border-slate-200 bg-slate-50 p-4">
+          <div className="flex rounded-lg bg-slate-200 p-1">
             <button
-              onClick={() => isEatInAllowed && setOrderType("eat-in")} // Chọn ăn tại chỗ (nếu cho phép)
+              onClick={() => isEatInAllowed && setOrderType("eat-in")}
               disabled={!isEatInAllowed}
-              className={`flex-1 rounded-md py-2 text-sm font-medium transition-all ${
-                orderType === "eat-in" ? "text-brand-600 bg-white shadow-sm" : "text-gray-500"
+              className={`flex flex-1 flex-col items-center justify-center rounded-md py-2 text-sm font-bold transition-all ${
+                orderType === "eat-in"
+                  ? "bg-white text-orange-600 shadow-sm"
+                  : "text-slate-500 hover:text-slate-600"
               } ${!isEatInAllowed ? "cursor-not-allowed opacity-50" : ""}`}
             >
-              店内 (Eat-in) {/* Ăn tại chỗ */}
+              <span>店内 (Eat-in)</span>
               {!isEatInAllowed && (
-                <span className="block text-[10px] text-red-500">20:30終了</span>
-              )}{" "}
-              {/* Kết thúc lúc 20:30 */}
+                <span className="text-[10px] font-normal text-red-500">20:30終了</span>
+              )}
             </button>
             <button
-              onClick={() => setOrderType("takeaway")} // Chọn mang đi
-              className={`flex-1 rounded-md py-2 text-sm font-medium transition-all ${
-                orderType === "takeaway" ? "text-brand-600 bg-white shadow-sm" : "text-gray-500"
+              onClick={() => setOrderType("takeaway")}
+              className={`flex-1 rounded-md py-2 text-sm font-bold transition-all ${
+                orderType === "takeaway"
+                  ? "bg-white text-orange-600 shadow-sm"
+                  : "text-slate-500 hover:text-slate-600"
               }`}
             >
-              持ち帰り (Takeaway) {/* Mang đi */}
-            </button>
-          </div>
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-gray-700">現在の注文</h2>{" "}
-            {/* Đơn hàng hiện tại */}
-            <button
-              onClick={clearCart} // Xóa giỏ hàng
-              className="text-gray-400 transition-colors hover:text-red-500"
-            >
-              <Trash2 className="h-5 w-5" /> {/* Icon thùng rác */}
+              持ち帰り
             </button>
           </div>
         </div>
 
-        {/* Danh sách sản phẩm trong giỏ */}
-        <div className="flex-1 space-y-3 overflow-y-auto p-4">
-          {cart.length === 0 ? ( // Nếu giỏ trống
-            <div className="flex h-full flex-col items-center justify-center text-gray-400 opacity-50">
-              <Grid className="mb-2 h-16 w-16" /> {/* Icon lưới */}
-              <p>カートは空です</p> {/* Giỏ trống */}
+        {/* Cart Header - Tiêu đề và nút xóa giỏ hàng */}
+        <div className="flex items-center justify-between border-b border-dashed border-slate-200 px-6 py-4">
+          <div className="flex items-center gap-2">
+            <Receipt className="h-5 w-5 text-slate-400" />
+            <h2 className="text-lg font-bold text-slate-700">現在の注文</h2>
+          </div>
+          <button
+            onClick={clearCart}
+            className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-red-500 transition-colors hover:bg-red-50"
+            disabled={cart.length === 0}
+          >
+            <Trash2 className="h-3.5 w-3.5" /> 全削除
+          </button>
+        </div>
+
+        {/* Cart Items - Danh sách sản phẩm trong giỏ hàng */}
+        <div className="flex-1 space-y-1 overflow-y-auto bg-slate-50/50 p-4">
+          {cart.length === 0 ? (
+            <div className="flex h-full flex-col items-center justify-center text-slate-400">
+              <div className="mb-4 rounded-full bg-slate-100 p-6">
+                <Grid className="h-10 w-10 text-slate-300" />
+              </div>
+              <p className="font-medium">カートは空です</p>
+              <p className="text-sm">商品をタップして追加してください</p>
             </div>
           ) : (
-            cart.map(
-              (
-                item // Render từng item trong giỏ
-              ) => (
-                <div
-                  key={item.product_id}
-                  className="flex items-center justify-between rounded-lg border border-gray-100 bg-white p-3 shadow-sm"
-                >
-                  <div className="flex-1">
-                    <h4 className="text-sm font-medium text-gray-800">{item.name}</h4>{" "}
-                    {/* Tên sản phẩm */}
-                    <p className="text-brand-600 text-sm font-bold">
-                      ¥{item.price.toLocaleString()} {/* Giá */}
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <button
-                      onClick={() => removeFromCart(item.product_id)} // Xóa sản phẩm
-                      className="rounded-full bg-gray-100 p-1 text-gray-500 hover:bg-red-100 hover:text-red-600"
-                      aria-label="Remove item"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => updateCartQuantity(item.product_id, -1)} // Giảm số lượng
-                      className="rounded-full bg-gray-100 p-1 text-gray-600 hover:bg-gray-200"
-                    >
-                      <Minus className="h-4 w-4" />
-                    </button>
-                    <span className="w-6 text-center font-bold text-gray-700">{item.quantity}</span>{" "}
-                    {/* Số lượng */}
-                    <button
-                      onClick={() => updateCartQuantity(item.product_id, 1)} // Tăng số lượng
-                      className="rounded-full bg-gray-100 p-1 text-gray-600 hover:bg-gray-200"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </button>
-                  </div>
+            cart.map((item) => (
+              <div
+                key={item.product_id}
+                className="group flex items-center justify-between rounded-xl border border-transparent bg-white p-3 shadow-sm transition-all hover:border-orange-200"
+              >
+                <div className="flex-1 pr-3">
+                  <h4 className="line-clamp-1 text-sm font-bold text-slate-800">{item.name}</h4>
+                  <p className="mt-1 text-sm font-bold text-orange-600">
+                    ¥{item.price.toLocaleString()}
+                  </p>
                 </div>
-              )
-            )
+                <div className="flex items-center gap-3 rounded-lg bg-slate-50 p-1">
+                  <button
+                    onClick={() =>
+                      item.quantity === 1
+                        ? removeFromCart(item.product_id)
+                        : updateCartQuantity(item.product_id, -1)
+                    }
+                    className="flex h-7 w-7 items-center justify-center rounded-md bg-white text-slate-600 shadow-sm transition-colors hover:text-orange-600"
+                  >
+                    <Minus className="h-3.5 w-3.5" />
+                  </button>
+                  <span className="w-4 text-center text-sm font-bold text-slate-800">
+                    {item.quantity}
+                  </span>
+                  <button
+                    onClick={() => updateCartQuantity(item.product_id, 1)}
+                    className="flex h-7 w-7 items-center justify-center rounded-md bg-white text-slate-600 shadow-sm transition-colors hover:text-orange-600"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))
           )}
         </div>
 
-        {/* Tổng tiền và nút thanh toán */}
-        <div className="border-t border-gray-200 bg-white p-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-          <div className="mb-2 flex justify-between text-gray-600">
-            <span>小計 ({totalItems}点)</span> {/* Tạm tính */}
+        {/* Footer / Checkout - Hiển thị tổng tiền và nút thanh toán */}
+        <div className="z-30 bg-white p-6 shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.1)]">
+          <div className="mb-3 flex justify-between text-sm font-medium text-slate-500">
+            <span>小計 ({totalItems}点)</span>
             <span>¥{totalAmount.toLocaleString()}</span>
           </div>
-          <div className="mb-6 flex justify-between border-t border-dashed border-gray-300 pt-4">
-            <span className="text-xl font-bold text-gray-800">合計</span> {/* Tổng cộng */}
-            <span className="text-brand-600 text-2xl font-bold">
+          <div className="mb-6 flex items-end justify-between border-t border-dashed border-slate-200 pt-4">
+            <span className="text-lg font-bold text-slate-800">合計</span>
+            <span className="text-3xl font-extrabold tracking-tight text-orange-600">
               ¥{totalAmount.toLocaleString()}
             </span>
           </div>
           <button
-            onClick={() => setIsPaymentModalOpen(true)} // Mở modal thanh toán
-            disabled={cart.length === 0} // Vô hiệu hóa nếu giỏ trống
-            className="bg-brand-600 hover:bg-brand-700 w-full rounded-xl py-4 text-lg font-bold text-white shadow-lg transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={() => setIsPaymentModalOpen(true)}
+            disabled={cart.length === 0}
+            className="w-full rounded-xl bg-slate-900 py-4 text-lg font-bold text-white shadow-lg shadow-slate-200 transition-all hover:-translate-y-0.5 hover:bg-orange-600 hover:shadow-orange-200 active:scale-95 disabled:translate-y-0 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
           >
-            会計に進む {/* Tiến hành thanh toán */}
+            会計に進む
           </button>
         </div>
       </div>
 
-      {/* Modal thanh toán */}
+      {/* Payment Modal - Hộp thoại xác nhận thanh toán */}
       {isPaymentModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50 p-6">
-              <h3 className="text-xl font-bold text-gray-800">お支払い (現金のみ)</h3>{" "}
-              {/* Thanh toán (chỉ tiền mặt) */}
+        <div className="animate-in fade-in fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm duration-200">
+          <div className="animate-in zoom-in-95 flex w-full max-w-md scale-100 flex-col overflow-hidden rounded-2xl bg-white shadow-2xl duration-200">
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-6 py-4">
+              <h3 className="text-lg font-bold text-slate-800">お支払い確認</h3>
               <button
-                onClick={() => setIsPaymentModalOpen(false)} // Đóng modal
-                className="text-gray-400 hover:text-gray-600"
+                onClick={() => setIsPaymentModalOpen(false)}
+                className="rounded-full p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-600"
               >
-                ✕
+                <Plus className="h-6 w-6 rotate-45" />
               </button>
             </div>
 
-            <div className="space-y-6 p-6">
-              <div className="mb-6 text-center">
-                <p className="mb-1 text-gray-500">お支払い合計</p> {/* Tổng thanh toán */}
-                <p className="text-4xl font-extrabold text-gray-800">
-                  ¥{totalAmount.toLocaleString()}
-                </p>
-              </div>
+            <div className="p-8 text-center">
+              <p className="mb-2 text-sm font-semibold tracking-wide text-slate-500 uppercase">
+                お支払い合計 (現金)
+              </p>
+              <p className="mb-8 text-5xl font-black tracking-tight text-slate-800">
+                ¥{totalAmount.toLocaleString()}
+              </p>
 
-              <div className="bg-brand-50 border-brand-100 rounded-xl border p-6 text-center">
-                <p className="text-brand-800 mb-2 font-medium">
-                  会計内容を確認して完了してください {/* Xác nhận và hoàn tất thanh toán */}
+              <div className="rounded-xl border border-orange-100 bg-orange-50/50 p-4">
+                <p className="text-sm font-medium text-orange-800">
+                  現金を受け取り、会計を完了してください。
                 </p>
-                <p className="text-sm text-gray-500">＿＿＿＿＿</p>
               </div>
             </div>
 
-            <div className="border-t border-gray-100 bg-gray-50 p-6">
+            <div className="border-t border-slate-100 bg-slate-50 p-6">
               <button
-                onClick={handleCheckout} // Xử lý thanh toán
-                disabled={isProcessing} // Vô hiệu hóa khi đang xử lý
-                className="bg-brand-600 hover:bg-brand-700 flex w-full items-center justify-center rounded-xl py-4 text-lg font-bold text-white shadow-md disabled:cursor-not-allowed disabled:opacity-70"
+                onClick={handleCheckout}
+                disabled={isProcessing}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 py-4 text-lg font-bold text-white shadow-lg shadow-orange-200 transition-all hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {isProcessing ? ( // Hiển thị spinner nếu đang xử lý
-                  <svg
-                    className="mr-3 -ml-1 h-5 w-5 animate-spin text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                ) : null}
-                {isProcessing ? "処理中..." : "会計を完了する"}{" "}
-                {/* Đang xử lý hoặc Hoàn tất thanh toán */}
+                {isProcessing && (
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                )}
+                {isProcessing ? "処理中..." : "会計を完了する"}
               </button>
             </div>
           </div>

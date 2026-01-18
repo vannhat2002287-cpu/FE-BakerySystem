@@ -1,374 +1,487 @@
 /**
  * @authors Huynh and Hue
+ * @optimized_by Gemini (UI/UX)
  */
 
-// Trang lịch sử đơn hàng và phân tích doanh thu
 import React, { useState, useMemo, useEffect } from "react";
-import { ChevronDown, ChevronUp, FileText, Printer, Calendar } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  FileText,
+  Calendar,
+  Search,
+  ArrowUpDown,
+  ListOrdered,
+  X,
+} from "lucide-react";
 import { getOrdersByDate } from "@/api/orders";
 import { Order } from "@/types";
-import { ApiError } from "@/api/client";
 import Loading from "@/components/Loading";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
+import isBetween from "dayjs/plugin/isBetween";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
+dayjs.extend(isBetween);
 
-// Múi giờ server (Việt Nam)
+// ==== HẰNG SỐ MÚI GIỜ SERVER ====
 const SERVER_ZONE = "Asia/Ho_Chi_Minh";
 
+// ==== HÀM TẠO MẢNG NGÀY TRONG KHOẢNG ====
+const getDaysArray = (start: string, end: string): string[] => {
+  const days: string[] = [];
+  let currentDate = dayjs(start);
+  const endDate = dayjs(end);
+  while (currentDate.isBefore(endDate) || currentDate.isSame(endDate, "day")) {
+    days.push(currentDate.format("YYYY-MM-DD"));
+    currentDate = currentDate.add(1, "day");
+  }
+  return days;
+};
+
+// ==== KIỂU SẮP XẾP ====
+type SortKey = "order_time" | "total_amount";
+type SortDirection = "asc" | "desc";
+
+// ==== COMPONENT CHÍNH: LỊCH SỬ ĐƠN HÀNG ====
 const HistoryPage: React.FC = () => {
-  // State quản lý
-  const [orders, setOrders] = useState<Order[]>([]);
+  // ==== STATE QUẢN LÝ DỮ LIỆU ====
+  // Danh sách tất cả đơn hàng lấy được
+  const [allOrders, setAllOrders] = useState<Order[]>([]);
+  // Trạng thái loading khi lấy đơn hàng
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [selectedDate, setSelectedDate] = useState<string>(() => {
-    // Mặc định là ngày hôm nay theo múi giờ VN
-    return dayjs().tz(SERVER_ZONE).format("YYYY-MM-DD");
-  });
+  // Ngày bắt đầu lọc
+  const [startDate, setStartDate] = useState<string>(() =>
+    dayjs().tz(SERVER_ZONE).format("YYYY-MM-DD")
+  );
+  // Ngày kết thúc lọc
+  const [endDate, setEndDate] = useState<string>(() =>
+    dayjs().tz(SERVER_ZONE).format("YYYY-MM-DD")
+  );
+  // Tab đang chọn: daily (theo ngày) hoặc product (phân tích sản phẩm)
   const [activeTab, setActiveTab] = useState<"daily" | "product">("daily");
+  // ID đơn hàng đang mở chi tiết
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
-  // Filter theo loại đơn hàng: all, eat-in, takeaway
+  // Bộ lọc loại đơn hàng
   const [orderTypeFilter, setOrderTypeFilter] = useState<"all" | "eat-in" | "takeaway">("all");
+  // Từ khóa tìm kiếm theo ID
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  // Trường sắp xếp
+  const [sortKey, setSortKey] = useState<SortKey>("order_time");
+  // Chiều sắp xếp
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
-  // TAB 1: Tổng hợp đơn hàng theo ngày
-  const dailySummary = useMemo(() => {
-    const map = new Map<
-      string,
-      {
-        date: string;
-        total: number;
-        eatIn: number;
-        takeaway: number;
-        count: number;
-        orders: any[];
-      }
-    >();
-
-    // Lọc đơn hàng theo loại nếu có filter
-    const filteredOrders =
-      orderTypeFilter === "all"
-        ? orders
-        : orders.filter((order) => order.order_type === orderTypeFilter);
-
-    // Nhóm đơn hàng theo ngày
-    filteredOrders.forEach((order) => {
-      const dateStr = dayjs.tz(order.order_time, SERVER_ZONE).format("YYYY-MM-DD");
-
-      if (!map.has(dateStr)) {
-        map.set(dateStr, {
-          date: dateStr,
-          total: 0,
-          eatIn: 0,
-          takeaway: 0,
-          count: 0,
-          orders: [],
-        });
-      }
-      const entry = map.get(dateStr)!;
-      entry.total += order.total_amount;
-      entry.count += 1;
-      entry.orders.push(order);
-      // Phân loại doanh thu theo loại đơn
-      if (order.order_type === "eat-in") entry.eatIn += order.total_amount;
-      else entry.takeaway += order.total_amount;
-    });
-
-    // Sắp xếp theo ngày giảm dần (mới nhất trước)
-    return Array.from(map.values()).sort((a, b) => {
-      const dateA = new Date(a.date.replace(/\//g, "-"));
-      const dateB = new Date(b.date.replace(/\//g, "-"));
-      return dateB.getTime() - dateA.getTime();
-    });
-  }, [orders, orderTypeFilter]);
-
-  // TAB 2: Phân tích sản phẩm (thống kê số lượng và doanh thu theo sản phẩm)
-  const productAnalysis = useMemo(() => {
-    const map = new Map<string, { id: string; name: string; qty: number; sales: number }>();
-    orders.forEach((order) => {
-      order.items.forEach((item) => {
-        if (!map.has(item.product_id)) {
-          map.set(item.product_id, {
-            id: item.product_id,
-            name: item.name,
-            qty: 0,
-            sales: 0,
-          });
-        }
-        const entry = map.get(item.product_id)!;
-        entry.qty += item.quantity;
-        entry.sales += item.unit_price * item.quantity;
-      });
-    });
-    // Sắp xếp theo doanh thu giảm dần
-    return Array.from(map.values()).sort((a, b) => b.sales - a.sales);
-  }, [orders]);
-
-  // Gọi API lấy đơn hàng khi đổi ngày
+  // ==== EFFECT: Lấy đơn hàng theo khoảng ngày khi thay đổi filter ngày ====
   useEffect(() => {
-    const fetchOrders = async () => {
+    const fetchOrdersForRange = async () => {
+      if (!startDate || !endDate || dayjs(startDate).isAfter(dayjs(endDate))) {
+        setAllOrders([]);
+        return;
+      }
       try {
         setIsLoading(true);
-        const ordersData = await getOrdersByDate(selectedDate);
-        // Lọc chỉ giữ đơn đúng ngày đã chọn (theo múi giờ VN)
-        const toDateKey = (iso: string) => dayjs.tz(iso, SERVER_ZONE).format("YYYY-MM-DD");
-        const filtered = ordersData.filter((o) => toDateKey(o.order_time) === selectedDate);
-        setOrders(filtered);
+        const dateArray = getDaysArray(startDate, endDate);
+        const promises = dateArray.map((date) => getOrdersByDate(date));
+        const results = await Promise.allSettled(promises);
+        const fetchedOrders: Order[] = [];
+        results.forEach((result) => {
+          if (result.status === "fulfilled" && Array.isArray(result.value)) {
+            fetchedOrders.push(...result.value);
+          }
+        });
+        fetchedOrders.sort((a, b) => dayjs(b.order_time).diff(dayjs(a.order_time)));
+        setAllOrders(fetchedOrders);
       } catch (error) {
-        console.error("Failed to fetch orders:", error);
-        if (error instanceof ApiError) {
-          console.error("API Error:", error.status, error.response);
-        }
-        setOrders([]);
+        setAllOrders([]);
       } finally {
         setIsLoading(false);
       }
     };
+    fetchOrdersForRange();
+  }, [startDate, endDate]);
 
-    fetchOrders();
-  }, [selectedDate]);
+  // ==== DỮ LIỆU ĐƠN HÀNG ĐÃ LỌC VÀ SẮP XẾP ====
+  const processedOrders = useMemo(() => {
+    let filtered = allOrders;
+    if (orderTypeFilter !== "all") {
+      filtered = filtered.filter((order) => order.order_type === orderTypeFilter);
+    }
+    if (searchTerm) {
+      filtered = filtered.filter((order) => order.order_id.toString().includes(searchTerm));
+    }
+    filtered.sort((a, b) => {
+      const valA = a[sortKey];
+      const valB = b[sortKey];
+      if (valA < valB) return sortDirection === "asc" ? -1 : 1;
+      if (valA > valB) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+    return filtered;
+  }, [allOrders, orderTypeFilter, searchTerm, sortKey, sortDirection]);
 
-  // Toggle mở rộng/thu gọn chi tiết đơn hàng
-  const toggleOrderExpand = (id: string) => {
-    setExpandedOrderId(expandedOrderId === id ? null : id);
+  // ==== PHÂN TÍCH SẢN PHẨM (tính tổng bán và doanh thu từng sản phẩm) ====
+  const productAnalysis = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; qty: number; sales: number }>();
+    processedOrders.forEach((order) => {
+      order.items.forEach((item) => {
+        const entry = map.get(item.product_id) || {
+          id: item.product_id,
+          name: item.name,
+          qty: 0,
+          sales: 0,
+        };
+        entry.qty += item.quantity;
+        entry.sales += item.unit_price * item.quantity;
+        map.set(item.product_id, entry);
+      });
+    });
+    return Array.from(map.values()).sort((a, b) => b.sales - a.sales);
+  }, [processedOrders]);
+
+  // ==== HÀM XỬ LÝ SẮP XẾP BẢNG ====
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDirection("desc");
+    }
   };
 
+  // ==== COMPONENT HEADER CÓ SẮP XẾP (dùng cho bảng) ====
+  const SortableHeader: React.FC<{ columnKey: SortKey; title: string }> = ({
+    columnKey,
+    title,
+  }) => (
+    <th
+      onClick={() => handleSort(columnKey)}
+      className="cursor-pointer px-6 py-3 text-left text-xs font-bold tracking-wider text-slate-500 uppercase transition-colors hover:bg-slate-100"
+    >
+      <div className="flex items-center gap-1">
+        {title}
+        {sortKey === columnKey ? (
+          sortDirection === "desc" ? (
+            <ChevronDown size={14} />
+          ) : (
+            <ChevronUp size={14} />
+          )
+        ) : (
+          <ArrowUpDown size={14} className="opacity-30" />
+        )}
+      </div>
+    </th>
+  );
+
+  // ==== RENDER GIAO DIỆN LỊCH SỬ ĐƠN HÀNG ====
   return (
-    <div className="h-full overflow-y-auto bg-gray-50 p-8">
-      {/* Header: Tiêu đề + chọn ngày */}
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-800">注文履歴・売上分析</h1>
-        <div className="flex items-center gap-3">
-          <Calendar className="h-5 w-5 text-gray-500" />
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="focus:ring-brand-500 rounded-lg border border-gray-300 px-4 py-2 outline-none focus:border-transparent focus:ring-2"
-          />
+    <div className="flex h-full flex-col overflow-hidden bg-slate-50 p-6 font-sans text-slate-800">
+      {/* Header & Tabs - Tiêu đề và các tab chuyển đổi giữa xem đơn hàng và phân tích sản phẩm */}
+      <div className="mb-6 flex items-end justify-between">
+        <h1 className="text-2xl font-bold text-slate-800">売上・注文履歴</h1>
+        <div className="flex rounded-lg bg-slate-200 p-1">
+          <button
+            onClick={() => setActiveTab("daily")}
+            className={`flex items-center gap-2 rounded-md px-6 py-2 text-sm font-bold transition-all ${activeTab === "daily" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+          >
+            <ListOrdered className="h-4 w-4" /> 注文一覧
+          </button>
+          <button
+            onClick={() => setActiveTab("product")}
+            className={`flex items-center gap-2 rounded-md px-6 py-2 text-sm font-bold transition-all ${activeTab === "product" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+          >
+            <FileText className="h-4 w-4" /> 商品分析
+          </button>
         </div>
       </div>
 
-      {/* Tabs: Báo cáo ngày / Phân tích sản phẩm */}
-      <div className="mb-6 flex space-x-1 border-b border-gray-200">
-        <button
-          onClick={() => setActiveTab("daily")}
-          className={`rounded-t-lg px-6 py-3 text-sm font-medium transition-colors ${
-            activeTab === "daily"
-              ? "text-brand-600 border-t border-r border-l border-gray-200 bg-white"
-              : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-          }`}
-        >
-          日次レポート
-        </button>
-        <button
-          onClick={() => setActiveTab("product")}
-          className={`rounded-t-lg px-6 py-3 text-sm font-medium transition-colors ${
-            activeTab === "product"
-              ? "text-brand-600 border-t border-r border-l border-gray-200 bg-white"
-              : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-          }`}
-        >
-          商品分析
-        </button>
-      </div>
-
-      {/* TAB 1: Báo cáo theo ngày */}
-      {activeTab === "daily" && (
-        <div className="space-y-6">
-          {/* Sub-tabs: Lọc theo loại đơn hàng */}
-          <div className="flex items-center gap-2">
-            <span className="mr-2 text-sm text-gray-500">注文種類:</span>
-            <button
-              onClick={() => setOrderTypeFilter("all")}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                orderTypeFilter === "all"
-                  ? "bg-brand-600 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-            >
-              すべて
-            </button>
-            <button
-              onClick={() => setOrderTypeFilter("eat-in")}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                orderTypeFilter === "eat-in"
-                  ? "bg-blue-600 text-white"
-                  : "border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
-              }`}
-            >
-              店内
-            </button>
-            <button
-              onClick={() => setOrderTypeFilter("takeaway")}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                orderTypeFilter === "takeaway"
-                  ? "bg-orange-600 text-white"
-                  : "border border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100"
-              }`}
-            >
-              持ち帰り
-            </button>
+      <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        {/* Toolbar - Thanh công cụ lọc ngày, loại đơn hàng, tìm kiếm ID */}
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 bg-slate-50 px-6 py-4">
+          <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
+            <Calendar className="h-4 w-4 text-slate-400" />
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-32 text-sm font-medium text-slate-700 outline-none"
+            />
+            <span className="text-slate-300">~</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-32 text-sm font-medium text-slate-700 outline-none"
+            />
           </div>
 
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loading message="Loading orders..." />
-            </div>
-          ) : dailySummary.length === 0 ? (
-            // Trạng thái trống
-            <div className="rounded-xl border border-gray-200 bg-white p-12 text-center shadow-sm">
-              <FileText className="mx-auto mb-4 h-16 w-16 text-gray-300" />
-              <p className="text-lg text-gray-500">No orders found for selected date</p>
-              <p className="mt-2 text-sm text-gray-400">Select a different date to view orders</p>
-            </div>
-          ) : (
-            // Danh sách đơn hàng theo ngày
-            dailySummary.map((day) => (
-              <div
-                key={day.date}
-                className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
+          {activeTab === "daily" && (
+            <div className="flex gap-3">
+              <select
+                value={orderTypeFilter}
+                onChange={(e) => setOrderTypeFilter(e.target.value as any)}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium outline-none focus:border-orange-500"
               >
-                {/* Header tổng hợp ngày */}
-                <div className="flex flex-wrap items-center justify-between border-b border-gray-200 bg-gray-50 px-6 py-4">
-                  <div>
-                    <h3 className="flex items-center text-lg font-bold text-gray-800">
-                      <FileText className="text-brand-500 mr-2 h-5 w-5" />
-                      {day.date}
-                    </h3>
-                    <span className="ml-7 text-sm text-gray-500">{day.count} 件の注文</span>
-                  </div>
-                  {/* Tổng doanh thu theo loại */}
-                  <div className="flex space-x-6 text-right">
-                    <div>
-                      <p className="text-xs text-gray-500">店内</p>
-                      <p className="font-medium text-gray-700">¥{day.eatIn.toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500">持ち帰り</p>
-                      <p className="font-medium text-gray-700">¥{day.takeaway.toLocaleString()}</p>
-                    </div>
-                    <div className="border-l border-gray-300 pl-6">
-                      <p className="text-xs font-bold text-gray-500">総売上</p>
-                      <p className="text-brand-600 text-xl font-bold">
-                        ¥{day.total.toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Danh sách từng đơn hàng */}
-                <div className="divide-y divide-gray-100">
-                  {day.orders.map((order: any, orderIndex: number) => (
-                    <div key={order.order_id}>
-                      {/* Row đơn hàng (click để mở rộng) */}
-                      <div
-                        onClick={() => toggleOrderExpand(order.order_id)}
-                        className="flex cursor-pointer items-center justify-between px-6 py-3 hover:bg-gray-50"
-                      >
-                        <div className="flex items-center space-x-4">
-                          <span className="font-mono text-sm text-gray-400">
-                            {dayjs.tz(order.order_time, SERVER_ZONE).format("HH:mm")}
-                          </span>
-                          {/* Badge loại đơn */}
-                          <span
-                            className={`rounded border px-2 py-0.5 text-xs ${
-                              order.order_type === "eat-in"
-                                ? "border-blue-200 bg-blue-50 text-blue-700"
-                                : "border-orange-200 bg-orange-50 text-orange-700"
-                            }`}
-                          >
-                            {order.order_type === "eat-in" ? "店内" : "持帰"}
-                          </span>
-                          <span className="text-sm font-medium text-gray-700">
-                            #{orderIndex + 1}
-                          </span>
-                        </div>
-                        <div className="flex items-center space-x-4">
-                          <span className="font-bold text-gray-800">
-                            ¥{order.total_amount.toLocaleString()}
-                          </span>
-                          {expandedOrderId === order.order_id ? (
-                            <ChevronUp className="h-4 w-4 text-gray-400" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4 text-gray-400" />
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Chi tiết đơn hàng (khi mở rộng) */}
-                      {expandedOrderId === order.order_id && (
-                        <div className="border-t border-gray-100 bg-gray-50 px-6 py-4 text-sm">
-                          <ul className="mb-4 space-y-1">
-                            {order.items.map((item: any) => (
-                              <li key={item.product_id} className="flex justify-between">
-                                <span className="text-gray-600">
-                                  {item.name} x {item.quantity}
-                                </span>
-                                <span className="text-gray-800">
-                                  ¥{(item.unit_price * item.quantity).toLocaleString()}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                <option value="all">すべての注文</option>
+                <option value="eat-in">店内 (Eat-in)</option>
+                <option value="takeaway">持ち帰り (Takeaway)</option>
+              </select>
+              <div className="relative">
+                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="ID検索..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-48 rounded-lg border border-slate-200 py-1.5 pr-3 pl-9 text-sm transition-all outline-none focus:border-orange-500"
+                />
               </div>
-            ))
+            </div>
           )}
         </div>
-      )}
 
-      {/* TAB 2: Phân tích sản phẩm */}
-      {activeTab === "product" && (
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+        {/* Stats Cards (Unified) - Thống kê tổng quan: tổng doanh thu, số lượng giao dịch, doanh thu theo loại đơn hàng */}
+        <div className="grid grid-cols-3 gap-6 p-6 pb-0">
+          <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+            <div className="mb-1 text-xs font-bold tracking-wider text-slate-400 uppercase">
+              総売上
+            </div>
+            <div className="text-2xl font-black text-slate-800">
+              ¥
+              {processedOrders
+                .reduce(
+                  (sum, o) => sum + (activeTab === "daily" ? o.total_amount : 0),
+                  activeTab === "product" ? productAnalysis.reduce((sum, i) => sum + i.sales, 0) : 0
+                )
+                .toLocaleString()}
+            </div>
+          </div>
+          <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+            <div className="mb-1 text-xs font-bold tracking-wider text-slate-400 uppercase">
+              取引件数
+            </div>
+            <div className="text-2xl font-black text-slate-800">
+              {activeTab === "daily"
+                ? processedOrders.length
+                : productAnalysis.reduce((sum, i) => sum + i.qty, 0)}{" "}
+              <span className="text-sm font-normal text-slate-400">
+                {activeTab === "daily" ? "件" : "個"}
+              </span>
+            </div>
+          </div>
+          <div className="flex flex-col justify-center gap-1 rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+            {/* Tính tổng doanh thu và phần trăm */}
+            {(() => {
+              const eatin = processedOrders
+                .filter((o) => o.order_type === "eat-in")
+                .reduce((sum, o) => sum + o.total_amount, 0);
+              const takeaway = processedOrders
+                .filter((o) => o.order_type === "takeaway")
+                .reduce((sum, o) => sum + o.total_amount, 0);
+              const total = eatin + takeaway;
+              const eatinPercent = total ? Math.round((eatin / total) * 100) : 0;
+              const takeawayPercent = total ? Math.round((takeaway / total) * 100) : 0;
+              return (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500">店内</span>
+                    <span className="font-bold">
+                      ¥{eatin.toLocaleString()}{" "}
+                      <span className="text-xs text-slate-400">( {eatinPercent}% )</span>
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-full bg-blue-500" style={{ width: `${eatinPercent}%` }}></div>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500">持帰</span>
+                    <span className="font-bold">
+                      ¥{takeaway.toLocaleString()}{" "}
+                      <span className="text-xs text-slate-400">( {takeawayPercent}% )</span>
+                    </span>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+
+        {/* Main Content Area - Khu vực hiển thị nội dung chính: bảng đơn hàng hoặc phân tích sản phẩm */}
+        <div className="relative flex flex-1 overflow-hidden p-6">
           {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loading message="Loading product analysis..." />
+            <div className="flex h-full w-full items-center justify-center">
+              <Loading message="データを読み込み中..." />
             </div>
           ) : (
-            <table className="w-full text-left">
-              <thead className="border-b border-gray-200 bg-gray-100">
-                <tr>
-                  <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">順位</th>
-                  <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">
-                    商品名
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">
-                    販売個数
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">
-                    売上金額
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 text-sm">
-                {productAnalysis.map((item, index) => (
-                  <tr key={item.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-gray-500">#{index + 1}</td>
-                    <td className="px-6 py-4 font-medium text-gray-800">{item.name}</td>
-                    <td className="px-6 py-4 text-right text-gray-600">{item.qty}</td>
-                    <td className="px-6 py-4 text-right font-bold text-gray-800">
-                      ¥{item.sales.toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-                {productAnalysis.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="px-6 py-8 text-center text-gray-400">
-                      データがありません
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+            <>
+              {/* Daily Orders Table - Bảng danh sách đơn hàng theo ngày */}
+              {activeTab === "daily" && (
+                <div
+                  className={`flex flex-1 flex-col overflow-hidden transition-all duration-300 ${expandedOrderId ? "w-2/3 pr-4" : "w-full"}`}
+                >
+                  <div className="flex-1 overflow-auto rounded-xl border border-slate-200">
+                    <table className="w-full text-left text-sm">
+                      <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50">
+                        <tr>
+                          <SortableHeader columnKey="order_time" title="ID / 日時" />
+                          <th className="px-6 py-3 text-center text-xs font-bold text-slate-500 uppercase">
+                            種類
+                          </th>
+                          <SortableHeader columnKey="total_amount" title="合計金額" />
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 bg-white">
+                        {processedOrders.map((order) => (
+                          <tr
+                            key={order.order_id}
+                            onClick={() =>
+                              setExpandedOrderId(
+                                order.order_id === expandedOrderId ? null : order.order_id
+                              )
+                            }
+                            className={`cursor-pointer transition-colors hover:bg-slate-50 ${expandedOrderId === order.order_id ? "border-l-4 border-orange-500 bg-orange-50" : ""}`}
+                          >
+                            <td className="px-6 py-4">
+                              <div className="font-mono font-bold text-slate-700">
+                                #{order.order_id}
+                              </div>
+                              <div className="text-xs text-slate-400">
+                                {dayjs.tz(order.order_time, SERVER_ZONE).format("YYYY/MM/DD HH:mm")}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <span
+                                className={`rounded px-2 py-1 text-xs font-bold ${order.order_type === "eat-in" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"}`}
+                              >
+                                {order.order_type === "eat-in" ? "店内" : "持帰"}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-right font-mono font-bold text-slate-800">
+                              ¥{order.total_amount.toLocaleString()}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Product Analysis Table - Bảng phân tích sản phẩm: xếp hạng, tên, số lượng bán, doanh thu */}
+              {activeTab === "product" && (
+                <div className="w-full overflow-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-left text-sm">
+                    <thead className="sticky top-0 border-b border-slate-200 bg-slate-50">
+                      <tr>
+                        <th className="w-20 px-6 py-3 text-center text-xs font-bold text-slate-500">
+                          順位
+                        </th>
+                        <th className="px-6 py-3 text-xs font-bold text-slate-500">商品名</th>
+                        <th className="px-6 py-3 text-right text-xs font-bold text-slate-500">
+                          販売数
+                        </th>
+                        <th className="px-6 py-3 text-right text-xs font-bold text-slate-500">
+                          売上
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {productAnalysis.map((item, idx) => (
+                        <tr key={item.id} className="hover:bg-slate-50">
+                          <td className="px-6 py-4 text-center">
+                            <span
+                              className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${idx < 3 ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-500"}`}
+                            >
+                              {idx + 1}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 font-bold text-slate-700">{item.name}</td>
+                          <td className="px-6 py-4 text-right font-mono text-slate-600">
+                            {item.qty}
+                          </td>
+                          <td className="px-6 py-4 text-right font-mono font-bold text-slate-800">
+                            ¥{item.sales.toLocaleString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Order Detail Drawer (Slide-in) - Bảng chi tiết đơn hàng dạng trượt từ phải vào */}
+              {activeTab === "daily" && expandedOrderId && (
+                <div className="animate-in slide-in-from-right absolute top-6 right-0 bottom-6 z-20 flex w-1/3 min-w-[350px] flex-col rounded-l-2xl border border-slate-200 bg-white shadow-2xl duration-300">
+                  <div className="flex items-center justify-between rounded-tl-2xl border-b border-slate-100 bg-slate-50 p-4">
+                    <span className="font-bold text-slate-700">詳細情報 #{expandedOrderId}</span>
+                    <button
+                      onClick={() => setExpandedOrderId(null)}
+                      className="rounded p-1 text-slate-400 hover:bg-slate-200"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-4">
+                    {(() => {
+                      const order = processedOrders.find((o) => o.order_id === expandedOrderId);
+                      if (!order) return null;
+                      return (
+                        <div className="space-y-6">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="rounded-lg bg-slate-50 p-3">
+                              <div className="text-xs text-slate-400">
+                                日時 {/* Ngày giờ đặt hàng */}
+                              </div>
+                              <div className="font-medium text-slate-800">
+                                {dayjs.tz(order.order_time, SERVER_ZONE).format("MM/DD HH:mm")}
+                              </div>
+                            </div>
+                            <div className="rounded-lg bg-slate-50 p-3">
+                              <div className="text-xs text-slate-400">
+                                合計 {/* Tổng tiền đơn hàng */}
+                              </div>
+                              <div className="text-lg font-bold text-orange-600">
+                                ¥{order.total_amount.toLocaleString()}
+                              </div>
+                            </div>
+                          </div>
+                          <div>
+                            <div className="mb-2 text-xs font-bold text-slate-400 uppercase">
+                              商品リスト {/* Danh sách sản phẩm trong đơn */}
+                            </div>
+                            <ul className="space-y-2">
+                              {order.items.map((item, i) => (
+                                <li
+                                  key={i}
+                                  className="flex items-center justify-between border-b border-dashed border-slate-100 py-2 last:border-0"
+                                >
+                                  <div>
+                                    <div className="text-sm font-bold text-slate-700">
+                                      {item.name} {/* Tên sản phẩm */}
+                                    </div>
+                                    <div className="text-xs text-slate-400">
+                                      ¥{item.unit_price} x {item.quantity}{" "}
+                                      {/* Đơn giá x số lượng */}
+                                    </div>
+                                  </div>
+                                  <div className="font-mono font-medium text-slate-800">
+                                    ¥{(item.unit_price * item.quantity).toLocaleString()}
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 };

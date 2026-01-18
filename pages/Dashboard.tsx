@@ -2,7 +2,7 @@
  * @authors Huynh and Hue
  */
 
-// Trang Dashboard - hiển thị thống kê tổng quan
+// Dashboard: Thống kê tổng quan
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "@/store/StoreContext";
@@ -26,21 +26,30 @@ import { ApiError } from "@/api/client";
 import toast from "react-hot-toast";
 import Loading from "@/components/Loading";
 
+// Hàm chính cho dashboard
 const Dashboard: React.FC = () => {
+  // Lấy dữ liệu inventory và products từ store
   const { inventory, products } = useStore();
+  // Hàm chuyển trang
   const navigate = useNavigate();
 
-  // State quản lý dữ liệu dashboard
+  // ==== STATE QUẢN LÝ DỮ LIỆU ====
+  // Dữ liệu dashboard tổng hợp từ API
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  // Trạng thái loading khi lấy dữ liệu
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  // Trạng thái lỗi khi lấy dữ liệu
   const [error, setError] = useState<string | null>(null);
+  // Danh sách top sản phẩm bán chạy hôm nay
   const [todayPopular, setTodayPopular] = useState<
-    Array<{ id: string; name: string; count: number }>
+    Array<{ id: string; name: string; count: number; sales: number }>
   >([]);
+  // Tổng số đơn hàng hôm nay
   const [todayOrderCount, setTodayOrderCount] = useState<number>(0);
+  // Tổng doanh thu hôm nay
   const [todayDailySales, setTodayDailySales] = useState<number>(0);
 
-  // Hàm lấy dữ liệu dashboard từ API
+  // ==== HÀM LẤY DỮ LIỆU DASHBOARD ====
   const fetchDashboardData = React.useCallback(async () => {
     try {
       setIsLoading(true);
@@ -58,13 +67,14 @@ const Dashboard: React.FC = () => {
         const totalSales = orders.reduce((s, o) => s + (o.total_amount || 0), 0);
 
         // Tính sản phẩm bán chạy từ đơn hàng
-        const counts = new Map<string, { name: string; count: number }>();
+        const counts = new Map<string, { name: string; count: number; sales: number }>();
         orders.forEach((order) => {
           order.items.forEach((it) => {
             const id = it.product_id;
             const name = it.name || (products.find((p) => p.product_id === id)?.name ?? "");
-            const prev = counts.get(id) ?? { name, count: 0 };
+            const prev = counts.get(id) ?? { name, count: 0, sales: 0 };
             prev.count += it.quantity;
+            prev.sales += it.unit_price * it.quantity;
             counts.set(id, prev);
           });
         });
@@ -75,6 +85,7 @@ const Dashboard: React.FC = () => {
             id,
             name: v.name || (products.find((p) => p.product_id === id)?.name ?? ""),
             count: v.count,
+            sales: v.sales,
           }))
           .sort((a, b) => b.count - a.count)
           .slice(0, 5);
@@ -114,12 +125,12 @@ const Dashboard: React.FC = () => {
     }
   }, [products]);
 
-  // Gọi API khi component mount
+  // ==== EFFECT: Gọi API khi component mount ====
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  // Lọc sản phẩm sắp hết hàng (không tính đồ uống)
+  // ==== LỌC SẢN PHẨM SẮP HẾT HÀNG (không tính đồ uống) ====
   const lowStockItems = inventory.filter((i) => {
     const product = products.find((p) => p.product_id === i.product_id);
     if (product && (product.type === "drink" || product.type === "alcohol")) {
@@ -128,13 +139,17 @@ const Dashboard: React.FC = () => {
     return i.current_quantity <= i.min_threshold;
   });
 
-  // Chuẩn bị dữ liệu hiển thị (ưu tiên dữ liệu tính từ orders)
+  // ==== BIẾN TỔNG HỢP DỮ LIỆU HIỂN THỊ ====
+  // Số lượng sản phẩm sắp hết hàng
   const lowStockCount = dashboardData?.lowStockCount ?? lowStockItems.length;
+  // Doanh thu hôm nay
   const dailySales = todayDailySales ?? dashboardData?.dailySales ?? 0;
+  // Số đơn hàng hôm nay
   const orderCount = todayOrderCount ?? dashboardData?.orderCount ?? 0;
+  // Dữ liệu doanh thu theo giờ
   const hourlyData = dashboardData?.hourlyData ?? [];
 
-  // Dữ liệu biểu đồ tròn (eat-in vs takeaway)
+  // ==== DỮ LIỆU BIỂU ĐỒ TRÒN (eat-in vs takeaway) ====
   const typeData = useMemo(() => {
     if (dashboardData?.typeData && dashboardData.typeData.length > 0) {
       return dashboardData.typeData;
@@ -145,15 +160,19 @@ const Dashboard: React.FC = () => {
     ];
   }, [dashboardData?.typeData]);
 
-  // Top 5 sản phẩm bán chạy
+  // ==== TOP 5 SẢN PHẨM BÁN CHẠY ====
   const popularProducts = (
-    todayPopular.length > 0 ? todayPopular : (dashboardData?.popularProducts ?? [])
+    todayPopular.length > 0
+      ? todayPopular
+      : (dashboardData?.popularProducts ?? []).map((p) => ({ ...p, sales: 0 }))
   ).slice(0, 5);
 
-  // Màu cho biểu đồ tròn
+  // ==== MÀU CHO BIỂU ĐỒ TRÒN ====
   const COLORS = ["#ea5f0c", "#fb923c"];
 
+  // ==== RENDER GIAO DIỆN DASHBOARD ====
   return (
+    // Wrapper dashboard
     <div className="h-full overflow-y-auto p-8">
       {/* Tiêu đề với ngày hiện tại */}
       <h1 className="text-2xl font-bold text-gray-800">
@@ -308,12 +327,13 @@ const Dashboard: React.FC = () => {
                     <th className="px-6 py-3">順位</th>
                     <th className="px-6 py-3">商品名</th>
                     <th className="px-6 py-3 text-right">販売数</th>
+                    <th className="px-6 py-3 text-right">売上金額</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {popularProducts.length === 0 ? (
                     <tr>
-                      <td colSpan={3} className="px-6 py-8 text-center text-gray-400">
+                      <td colSpan={4} className="px-6 py-8 text-center text-gray-400">
                         データがありません
                       </td>
                     </tr>
@@ -324,6 +344,9 @@ const Dashboard: React.FC = () => {
                         <td className="px-6 py-4 text-base font-bold text-gray-800">{item.name}</td>
                         <td className="px-6 py-4 text-right">
                           <span className="text-brand-600 text-lg font-bold">{item.count}</span>
+                        </td>
+                        <td className="px-6 py-4 text-right font-mono font-bold text-gray-800">
+                          ¥{(item.sales ?? 0).toLocaleString()}
                         </td>
                       </tr>
                     ))
