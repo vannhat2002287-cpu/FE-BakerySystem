@@ -1,39 +1,9 @@
 /**
  * @authors Huynh and Hue
  * @description Trang quản lý tồn kho và lịch sử yêu cầu nhập hàng từ nhà máy.
+ * @updates Refactored UI/UX for consistency with POS & Dashboard (Slate Theme).
  */
 import React, { useMemo, useState, useEffect, useCallback } from "react";
-// Modal xác nhận custom hiển thị ở giữa màn hình
-const ConfirmDialog: React.FC<{
-  open: boolean;
-  message: string;
-  onConfirm: () => void;
-  onCancel: () => void;
-}> = ({ open, message, onConfirm, onCancel }) => {
-  if (!open) return null;
-  return (
-    <div className="bg-opacity-30 fixed inset-0 z-50 flex items-center justify-center bg-black backdrop-blur-sm">
-      <div className="max-w-[400px] min-w-[320px] rounded-2xl border border-gray-100 bg-white p-8 text-center shadow-2xl">
-        <div className="mb-6 text-lg font-bold text-gray-800">{message}</div>
-        <div className="flex justify-center gap-4">
-          <button
-            className="flex-1 rounded-xl bg-gray-100 px-4 py-3 font-bold text-gray-700 transition-colors hover:bg-gray-200"
-            onClick={onCancel}
-          >
-            いいえ
-          </button>
-          <button
-            className="flex-1 rounded-xl bg-blue-600 px-4 py-3 font-bold text-white shadow-md transition-colors hover:bg-blue-700"
-            onClick={onConfirm}
-          >
-            はい
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 import { useStore } from "@/store/StoreContext";
 import {
   X,
@@ -47,6 +17,13 @@ import {
   PackageCheck,
   Loader2,
   ArrowRight,
+  Search,
+  Filter,
+  MoreHorizontal,
+  Calendar,
+  Box,
+  AlertCircle,
+  ChevronRight,
 } from "lucide-react";
 import {
   getAllFactoryRequests,
@@ -62,7 +39,6 @@ import {
   hasResetTodayInventory,
   markInventoryResetDone,
 } from "@/api/inventory";
-import { ApiError } from "@/api/client";
 import toast from "react-hot-toast";
 import { getCategories } from "@/api/categories";
 import type { Category, AutoOrderCheckResult } from "@/types";
@@ -70,20 +46,77 @@ import {
   AUTO_ORDER_CONFIG,
   checkAllProductsForAutoOrder,
   executeAutoOrderForAll,
-  formatAutoOrderSchedule,
-  getNextAutoOrderCheck,
 } from "@/utils/autoOrder";
 
-// Hàm tiện ích: Thêm số phút vào một đối tượng Date
+// --- UTILS ---
 const addMinutes = (date: Date, minutes: number) => new Date(date.getTime() + minutes * 60 * 1000);
 
-// Hàm tiện ích: Định dạng ISO date string sang chuỗi ngày giờ theo chuẩn Nhật Bản
 const formatJa = (iso: string) =>
-  new Date(iso).toLocaleString("ja-JP", { timeZone: "Asia/Ho_Chi_Minh" });
+  new Date(iso).toLocaleString("ja-JP", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
-// #region Sub-components (Các component con)
+// Component nhỏ: Thanh tiến độ (Visual Bar) - Slate Style
+const ProgressBar: React.FC<{ value: number; max: number; colorClass?: string }> = ({
+  value,
+  max,
+  colorClass = "bg-blue-500",
+}) => {
+  const percent = Math.min(100, Math.max(0, (value / max) * 100));
+  return (
+    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+      <div
+        className={`h-full transition-all duration-500 ease-out ${colorClass}`}
+        style={{ width: `${percent}%` }}
+      />
+    </div>
+  );
+};
 
-// Component: Bảng hiển thị danh sách tồn kho
+// --- SUB-COMPONENTS ---
+
+// 1. Confirm Dialog (Slate Style)
+const ConfirmDialog: React.FC<{
+  open: boolean;
+  message: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}> = ({ open, message, onConfirm, onCancel }) => {
+  if (!open) return null;
+  return (
+    <div className="animate-in fade-in fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm transition-all duration-200">
+      <div className="animate-in zoom-in-95 w-full max-w-sm scale-100 transform rounded-2xl bg-white p-6 shadow-2xl transition-all">
+        <div className="mb-4 flex justify-center">
+          <div className="rounded-full bg-orange-50 p-3">
+            <AlertTriangle className="h-8 w-8 text-orange-600" />
+          </div>
+        </div>
+        <div className="mb-8 text-center text-lg font-bold text-slate-800">{message}</div>
+        <div className="flex gap-3">
+          <button
+            className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 font-bold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-800"
+            onClick={onCancel}
+          >
+            いいえ
+          </button>
+          <button
+            className="flex-1 rounded-xl bg-orange-600 px-4 py-3 font-bold text-white shadow-lg shadow-orange-200 transition-all hover:-translate-y-0.5 hover:bg-orange-700 hover:shadow-orange-300"
+            onClick={onConfirm}
+          >
+            はい
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// 2. Inventory Table (Slate Style with Hover Effects)
 const InventoryTable: React.FC<{
   data: any[];
   factoryRequests: FactoryRequest[];
@@ -97,150 +130,204 @@ const InventoryTable: React.FC<{
   isResetting: boolean;
   handleAutoOrderCheck: () => void;
   isAutoOrdering: boolean;
-}> = ({
-  data,
-  factoryRequests,
-  onOpenRequestModal,
-  handleResetDailyInventory,
-  isResetting,
-  handleAutoOrderCheck,
-  isAutoOrdering,
-}) => (
-  <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-    <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-6 py-4">
-      <div className="flex w-full items-center justify-between">
-        <h2 className="flex items-center text-base font-bold text-gray-700">
-          <TrendingDown className="mr-2 h-5 w-5 text-gray-500" />
-          在庫一覧
-        </h2>
-        <div className="flex items-center gap-2">
+}> = ({ data, factoryRequests, onOpenRequestModal, handleResetDailyInventory, isResetting }) => {
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filteredData = useMemo(() => {
+    if (!searchTerm) return data;
+    const lower = searchTerm.toLowerCase();
+    return data.filter((item) => item.name.toLowerCase().includes(lower));
+  }, [data, searchTerm]);
+
+  return (
+    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      {/* Header */}
+      <div className="flex flex-col gap-4 border-b border-slate-100 bg-white px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="rounded-xl bg-orange-100 p-2">
+            <Box className="h-5 w-5 text-orange-600" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-slate-800">在庫一覧</h2>
+            <p className="text-xs font-medium text-slate-400">{data.length} アイテム</p>
+          </div>
+        </div>
+
+        <div className="flex flex-1 items-center justify-end gap-3">
+          {/* Search Box */}
+          <div className="group relative w-full max-w-xs">
+            <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-orange-500" />
+            <input
+              type="text"
+              placeholder="商品名を検索..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pr-4 pl-9 text-sm font-bold text-slate-700 transition-all outline-none focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-100"
+            />
+          </div>
+
+          <div className="mx-1 hidden h-8 w-px bg-slate-200 sm:block"></div>
+
           <button
             onClick={handleResetDailyInventory}
             disabled={isResetting}
-            className={`inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold transition-all ${isResetting ? "cursor-not-allowed bg-gray-100 text-gray-400" : "bg-gradient-to-r from-green-500 to-green-600 text-white shadow-md hover:from-green-600 hover:to-green-700"}`}
+            className={`hidden items-center rounded-xl border px-4 py-2.5 text-xs font-bold transition-all sm:inline-flex ${
+              isResetting
+                ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
+                : "border-slate-200 bg-white text-slate-600 hover:border-orange-200 hover:bg-slate-50 hover:text-orange-600"
+            }`}
           >
             <RefreshCw className={`mr-2 h-4 w-4 ${isResetting ? "animate-spin" : ""}`} />
-            {isResetting ? "リセット中..." : "新しい日を開始"}
-          </button>
-          <button
-            onClick={handleAutoOrderCheck}
-            disabled={isAutoOrdering}
-            className={`inline-flex items-center rounded-lg px-4 py-2 text-xs font-semibold transition-all ${isAutoOrdering ? "cursor-not-allowed bg-gray-100 text-gray-400" : "bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md hover:from-purple-600 hover:to-purple-700"}`}
-          >
-            <Zap className={`mr-2 h-4 w-4 ${isAutoOrdering ? "animate-pulse" : ""}`} />
-            {isAutoOrdering ? "チェック中..." : "自動発注チェック"}
+            {isResetting ? "処理中..." : "在庫リセット"}
           </button>
         </div>
       </div>
-    </div>
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-left text-sm">
-        <thead>
-          <tr className="border-b-2 border-gray-200 bg-gray-100">
-            <th className="w-16 border-r border-gray-200 px-4 py-3 text-center text-xs font-bold tracking-wider text-gray-600 uppercase">
-              No.
-            </th>
-            <th className="min-w-[200px] border-r border-gray-200 px-4 py-3 text-left text-xs font-bold tracking-wider text-gray-600 uppercase">
-              商品名
-            </th>
-            <th className="w-32 border-r border-gray-200 px-4 py-3 text-center text-xs font-bold tracking-wider text-gray-600 uppercase">
-              在庫数
-            </th>
-            <th className="w-44 border-r border-gray-200 px-4 py-3 text-center text-xs font-bold tracking-wider text-gray-600 uppercase">
-              最終更新
-            </th>
-            <th className="w-28 px-4 py-3 text-center text-xs font-bold tracking-wider text-gray-600 uppercase">
-              操作
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((item, index) => {
-            const isLow = item.stock <= item.threshold;
-            const hasActiveReq = factoryRequests.some(
-              (r) =>
-                r.product_id === item.product_id &&
-                (r.status === "PENDING" || r.status === "PARTIAL")
-            );
-            const disabledBtn = !isLow || hasActiveReq;
-            let btnTitle = "";
-            if (hasActiveReq) btnTitle = "既に依頼があります";
-            else if (isLow) btnTitle = "工場へ依頼";
-            else btnTitle = "基準値以下で依頼可";
 
-            return (
-              <tr
-                key={item.product_id}
-                className={`border-b border-gray-100 transition-colors hover:bg-blue-50 ${index % 2 === 0 ? "bg-white" : "bg-gray-50/50"} ${isLow ? "bg-red-50/50 hover:bg-red-50" : ""}`}
-              >
-                <td className="border-r border-gray-100 px-4 py-3 text-center font-mono text-sm text-gray-500">
-                  {index + 1}
-                </td>
-                <td className="border-r border-gray-100 px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={item.image_url}
-                      alt={item.name}
-                      className="h-12 w-12 rounded-lg border border-gray-200 bg-gray-100 object-cover shadow-sm"
-                    />
-                    <div>
-                      <div className="font-medium text-gray-800">{item.name}</div>
+      {/* Table */}
+      <div className="custom-scrollbar relative flex-1 overflow-auto">
+        <table className="w-full border-collapse text-left text-sm">
+          <thead className="sticky top-0 z-10 bg-slate-50/95 shadow-sm backdrop-blur-sm">
+            <tr>
+              <th className="w-16 px-6 py-4 text-xs font-bold tracking-wider text-slate-400 uppercase">
+                No.
+              </th>
+              <th className="px-6 py-4 text-xs font-bold tracking-wider text-slate-400 uppercase">
+                商品情報
+              </th>
+              <th className="w-56 px-6 py-4 text-center text-xs font-bold tracking-wider text-slate-400 uppercase">
+                在庫状況
+              </th>
+              <th className="hidden w-40 px-6 py-4 text-center text-xs font-bold tracking-wider text-slate-400 uppercase md:table-cell">
+                更新日時
+              </th>
+              <th className="w-32 px-6 py-4 text-center text-xs font-bold tracking-wider text-slate-400 uppercase">
+                アクション
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 bg-white">
+            {filteredData.map((item, index) => {
+              const isLow = item.stock <= item.threshold;
+              const stockPercent =
+                item.threshold > 0 ? (item.stock / (item.threshold * 2)) * 100 : 100;
+              const barColor = isLow
+                ? "bg-red-500"
+                : stockPercent < 50
+                  ? "bg-yellow-500"
+                  : "bg-green-500";
+              const hasActiveReq = factoryRequests.some(
+                (r) =>
+                  r.product_id === item.product_id &&
+                  (r.status === "PENDING" || r.status === "PARTIAL")
+              );
+              const disabledBtn = !isLow || hasActiveReq;
+
+              return (
+                <tr
+                  key={item.product_id}
+                  className={`group transition-all duration-200 hover:bg-slate-50 ${isLow ? "bg-red-50/40" : ""}`}
+                >
+                  <td className="px-6 py-4 text-center font-mono text-xs font-bold text-slate-400">
+                    {index + 1}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-4">
+                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all group-hover:shadow-md">
+                        <img
+                          src={item.image_url}
+                          alt={item.name}
+                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        />
+                      </div>
+                      <div>
+                        <div className="font-bold text-slate-800">{item.name}</div>
+                        <div className="mt-1 flex items-center text-xs font-medium text-slate-500">
+                          基準値: {item.threshold}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <div className="flex items-baseline gap-1">
+                        <span
+                          className={`text-xl font-black tabular-nums ${isLow ? "text-red-600" : "text-slate-800"}`}
+                        >
+                          {item.stock}
+                        </span>
+                        <span className="text-xs font-bold text-slate-400">個</span>
+                      </div>
+                      <div className="w-32">
+                        <ProgressBar
+                          value={item.stock}
+                          max={item.threshold * 2.5}
+                          colorClass={barColor}
+                        />
+                      </div>
                       {isLow && (
-                        <span className="mt-0.5 inline-flex items-center text-xs text-red-600">
-                          <AlertTriangle className="mr-1 h-3 w-3" />
-                          補充が必要
+                        <span className="inline-flex animate-pulse items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-600">
+                          <TrendingDown className="h-3 w-3" />
+                          不足
                         </span>
                       )}
                     </div>
-                  </div>
-                </td>
-                <td className="border-r border-gray-100 px-4 py-3 text-right">
-                  <span className={`text-xl font-bold ${isLow ? "text-red-600" : "text-gray-800"}`}>
-                    {item.stock}
-                  </span>
-                  <span className="ml-1 text-xs text-gray-500">個</span>
-                </td>
-                <td className="border-r border-gray-100 px-4 py-3 text-center font-mono text-xs text-gray-500">
-                  {item.lastUpdated
-                    ? new Date(item.lastUpdated).toLocaleString("ja-JP", {
-                        year: "numeric",
-                        month: "2-digit",
-                        day: "2-digit",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : "—"}
-                </td>
-                <td className="px-4 py-3 text-center">
-                  <button
-                    disabled={disabledBtn}
-                    onClick={() =>
-                      onOpenRequestModal(item.product_id, item.name, item.stock, item.threshold)
-                    }
-                    className={`inline-flex items-center justify-center rounded-lg px-3 py-2 text-xs font-bold transition-all ${
-                      !disabledBtn
-                        ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md hover:from-orange-600 hover:to-orange-700 hover:shadow-lg"
-                        : "cursor-not-allowed border border-gray-200 bg-gray-100 text-gray-400"
-                    }`}
-                    title={btnTitle}
-                  >
-                    {hasActiveReq && (
-                      <Loader2 className="mr-1.5 h-4 w-4 animate-spin text-orange-500" />
-                    )}
-                    <Factory className="mr-1.5 h-4 w-4" />
-                    依頼
-                  </button>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                  </td>
+                  <td className="hidden px-6 py-4 text-center font-mono text-xs font-medium text-slate-500 md:table-cell">
+                    {item.lastUpdated
+                      ? new Date(item.lastUpdated).toLocaleString("ja-JP", {
+                          month: "numeric",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "—"}
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <button
+                      disabled={disabledBtn}
+                      onClick={() =>
+                        onOpenRequestModal(item.product_id, item.name, item.stock, item.threshold)
+                      }
+                      className={`inline-flex h-10 w-full min-w-[90px] items-center justify-center rounded-xl px-3 text-xs font-bold transition-all duration-200 ${
+                        !disabledBtn
+                          ? "bg-orange-600 text-white shadow-md shadow-orange-200 hover:-translate-y-0.5 hover:bg-orange-700 hover:shadow-lg hover:shadow-orange-300"
+                          : "cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400"
+                      }`}
+                    >
+                      {hasActiveReq ? (
+                        <>
+                          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin text-orange-500" />
+                          依頼中
+                        </>
+                      ) : isLow ? (
+                        <>
+                          <Factory className="mr-1.5 h-3.5 w-3.5" />
+                          依頼
+                        </>
+                      ) : (
+                        "十分"
+                      )}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {filteredData.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+            <div className="mb-3 rounded-full bg-slate-100 p-4">
+              <Search className="h-8 w-8 opacity-40" />
+            </div>
+            <p className="font-bold">商品が見つかりません</p>
+          </div>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
-// Component: Tab hiển thị lịch sử các yêu cầu nhập hàng
+// 3. History Tab (Slate Style)
 const HistoryTabContent: React.FC<{
   requests: FactoryRequest[];
   filters: { date: string; sortBy: string; status: string };
@@ -249,6 +336,8 @@ const HistoryTabContent: React.FC<{
   onOpenPartialDelivery: (req: FactoryRequest) => void;
   onCancelRequest: (id: string) => void;
   businessDate: string;
+  handleAutoOrderCheck?: () => void;
+  isAutoOrdering?: boolean;
 }> = ({
   requests,
   filters,
@@ -256,157 +345,188 @@ const HistoryTabContent: React.FC<{
   isLoading,
   onOpenPartialDelivery,
   onCancelRequest,
-  businessDate,
+  handleAutoOrderCheck,
+  isAutoOrdering,
 }) => (
-  <div className="rounded-xl border border-gray-100 bg-white shadow-lg">
-    {/* Thanh filter hiện đại */}
-    <div className="flex flex-col gap-4 rounded-t-xl border-b border-gray-100 bg-gray-50 p-6 md:flex-row md:items-center md:justify-between">
-      <div className="flex items-center gap-2">
-        <label htmlFor="historyDateFilter" className="text-xs font-semibold text-gray-600">
-          日付:
-        </label>
-        <input
-          type="date"
-          id="historyDateFilter"
-          value={filters.date}
-          onChange={(e) => onFiltersChange({ date: e.target.value })}
-          className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-        />
-      </div>
-      <div className="flex items-center gap-2">
-        <label htmlFor="historyStatusFilter" className="text-xs font-semibold text-gray-600">
-          状態:
-        </label>
-        <select
-          id="historyStatusFilter"
-          value={filters.status}
-          onChange={(e) => onFiltersChange({ status: e.target.value })}
-          className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-        >
-          <option value="all">すべて</option>
-          <option value="DELIVERED">完了</option>
-          <option value="PENDING">発注中</option>
-          <option value="CANCELLED">キャンセル</option>
-        </select>
-      </div>
-      <div className="flex items-center gap-2">
-        <label htmlFor="historySortBy" className="text-xs font-semibold text-gray-600">
-          並替:
-        </label>
-        <select
-          id="historySortBy"
-          value={filters.sortBy}
-          onChange={(e) => onFiltersChange({ sortBy: e.target.value })}
-          className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-        >
-          <option value="newest">新しい順</option>
-          <option value="oldest">古い順</option>
-          <option value="product">商品名順</option>
-        </select>
-      </div>
-      <div className="mt-2 w-full text-right text-base font-bold text-blue-700 md:mt-0">
-        合計: <span className="text-xl">{requests.length}</span> 件
+  <div className="flex h-full flex-col gap-6">
+    {/* Filter Bar */}
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="group relative">
+            <Calendar className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400 transition-colors group-hover:text-orange-500" />
+            <input
+              type="date"
+              value={filters.date}
+              onChange={(e) => onFiltersChange({ date: e.target.value })}
+              className="cursor-pointer rounded-xl border border-slate-200 bg-slate-50 py-2.5 pr-3 pl-9 text-sm font-bold text-slate-700 transition-all outline-none focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-100"
+            />
+          </div>
+          <div className="group relative">
+            <Filter className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400 transition-colors group-hover:text-orange-500" />
+            <select
+              value={filters.status}
+              onChange={(e) => onFiltersChange({ status: e.target.value })}
+              className="cursor-pointer appearance-none rounded-xl border border-slate-200 bg-slate-50 py-2.5 pr-8 pl-9 text-sm font-bold text-slate-700 transition-all outline-none focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-100"
+            >
+              <option value="all">すべての状態</option>
+              <option value="PENDING">発注中 (Pending)</option>
+              <option value="PARTIAL">一部納品 (Partial)</option>
+              <option value="DELIVERED">完了 (Done)</option>
+              <option value="CANCELLED">キャンセル</option>
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
+              <ChevronRight className="h-4 w-4 rotate-90" />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <div className="hidden text-sm font-bold text-slate-500 md:block">
+            計 <span className="text-lg font-black text-slate-800">{requests.length}</span> 件
+          </div>
+          <button
+            onClick={handleAutoOrderCheck}
+            disabled={isAutoOrdering}
+            className={`flex items-center rounded-xl px-5 py-2.5 text-xs font-bold shadow-md transition-all ${
+              isAutoOrdering
+                ? "cursor-not-allowed bg-slate-100 text-slate-400 shadow-none"
+                : "bg-gradient-to-br from-purple-600 to-purple-800 text-white shadow-purple-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-purple-300"
+            }`}
+          >
+            <Zap className={`mr-2 h-4 w-4 ${isAutoOrdering ? "animate-pulse" : "fill-white"}`} />
+            {isAutoOrdering ? "AIチェック中..." : "自動発注チェック"}
+          </button>
+        </div>
       </div>
     </div>
 
-    {/* Danh sách phát注 dạng card hiện đại */}
-    <div className="grid max-h-[65vh] gap-4 overflow-y-auto p-6 md:grid-cols-2 lg:grid-cols-3">
-      {isLoading ? (
-        <div className="col-span-full py-8 text-center text-gray-500">読み込み中...</div>
-      ) : requests.length === 0 ? (
-        <div className="col-span-full py-8 text-center text-gray-500">履歴がありません</div>
-      ) : (
-        requests.map((req) => {
-          const backlog = calculateBacklog(req);
-          // NOTE: Đã bỏ kiểm tra isToday để cho phép nhập hàng từ những ngày trước
-          const canAction = req.status === "PENDING" || req.status === "PARTIAL";
+    {/* Grid Content */}
+    <div className="custom-scrollbar flex-1 overflow-y-auto pr-1">
+      <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {isLoading ? (
+          <div className="col-span-full flex flex-col items-center justify-center py-20 text-slate-400">
+            <Loader2 className="mb-3 h-10 w-10 animate-spin text-orange-500" />
+            <p>履歴を読み込み中...</p>
+          </div>
+        ) : requests.length === 0 ? (
+          <div className="col-span-full flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 py-20 text-slate-400">
+            <p>該当する履歴がありません</p>
+          </div>
+        ) : (
+          requests.map((req) => {
+            const backlog = calculateBacklog(req);
+            const canAction = req.status === "PENDING" || req.status === "PARTIAL";
+            const progressVal = req.delivered_quantity;
+            const progressMax = req.request_quantity;
+            const isCompleted = req.status === "DELIVERED";
 
-          let statusIcon = null;
-          if (req.status === "DELIVERED")
-            statusIcon = <CheckCircle2 className="mr-1 h-4 w-4 text-green-500" />;
-          else if (req.status === "PENDING")
-            statusIcon = <Clock className="mr-1 h-4 w-4 text-yellow-500" />;
-          else if (req.status === "PARTIAL")
-            statusIcon = <PackageCheck className="mr-1 h-4 w-4 text-orange-500" />;
-          else if (req.status === "CANCELLED")
-            statusIcon = <X className="mr-1 h-4 w-4 text-gray-400" />;
+            return (
+              <div
+                key={req.request_id}
+                className={`group relative flex flex-col rounded-2xl border bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${
+                  canAction
+                    ? "border-slate-200 hover:border-orange-200"
+                    : "border-slate-100 opacity-80 hover:opacity-100"
+                }`}
+              >
+                <div className="mb-4 flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-1 text-[10px] font-bold tracking-wide text-slate-400 uppercase">
+                      <Clock className="h-3 w-3" />
+                      {formatJa(req.created_at)}
+                    </div>
+                    <div
+                      className="mt-1 line-clamp-1 text-lg font-bold text-slate-800 transition-colors group-hover:text-orange-600"
+                      title={req.product_name}
+                    >
+                      {req.product_name}
+                    </div>
+                  </div>
 
-          return (
-            <div
-              key={req.request_id}
-              className={`relative flex min-h-[140px] flex-col justify-between rounded-xl border bg-white p-5 shadow-sm transition-all hover:shadow-lg ${canAction ? "border-blue-200 bg-blue-50/30" : "border-gray-200"}`}
-            >
-              <div className="mb-3 flex items-start justify-between gap-2">
-                <div className="flex flex-col gap-1">
-                  <span
-                    className="line-clamp-1 text-base font-bold text-gray-800"
-                    title={req.product_name}
-                  >
-                    {req.product_name}
-                  </span>
-                  <span className="text-xs text-gray-500">{formatJa(req.created_at)}</span>
-                </div>
-                <span
-                  className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide uppercase ${
-                    req.status === "PENDING"
-                      ? "bg-yellow-100 text-yellow-800"
-                      : req.status === "PARTIAL"
-                        ? "bg-orange-100 text-orange-800"
-                        : req.status === "DELIVERED"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-gray-100 text-gray-600"
-                  }`}
-                >
-                  {statusIcon}
-                  {req.status === "PENDING" && "発注中"}
-                  {req.status === "PARTIAL" && `残り${backlog}`}
-                  {req.status === "DELIVERED" && "完了"}
-                  {req.status === "CANCELLED" && "取消"}
-                </span>
-              </div>
-
-              <div className="mb-4 flex items-center justify-between rounded-lg border border-gray-100 bg-white/60 p-2">
-                <div className="text-center">
-                  <div className="text-[10px] font-bold text-gray-400 uppercase">依頼数</div>
-                  <div className="text-lg font-bold text-gray-800">{req.request_quantity}</div>
-                </div>
-                <ArrowRight className="h-4 w-4 text-gray-300" />
-                <div className="text-center">
-                  <div className="text-[10px] font-bold text-gray-400 uppercase">受取済</div>
                   <div
-                    className={`text-lg font-bold ${req.delivered_quantity > 0 ? "text-green-600" : "text-gray-400"}`}
+                    className={`rounded-xl p-2 ${
+                      req.status === "DELIVERED"
+                        ? "bg-green-50 text-green-600"
+                        : req.status === "PENDING"
+                          ? "bg-yellow-50 text-yellow-600"
+                          : req.status === "PARTIAL"
+                            ? "bg-orange-50 text-orange-600"
+                            : "bg-slate-100 text-slate-400"
+                    }`}
                   >
-                    {req.delivered_quantity}
+                    {req.status === "DELIVERED" && <CheckCircle2 className="h-5 w-5" />}
+                    {req.status === "PENDING" && <Clock className="h-5 w-5" />}
+                    {req.status === "PARTIAL" && <PackageCheck className="h-5 w-5" />}
+                    {req.status === "CANCELLED" && <X className="h-5 w-5" />}
                   </div>
                 </div>
-              </div>
 
-              {canAction && (
-                <div className="mt-auto grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => onCancelRequest(req.request_id)}
-                    className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-600 transition-colors hover:bg-gray-50 hover:text-red-500"
-                  >
-                    キャンセル
-                  </button>
-                  <button
-                    onClick={() => onOpenPartialDelivery(req)}
-                    className="flex items-center justify-center rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white shadow-md transition-all hover:bg-blue-700 hover:shadow-lg"
-                  >
-                    <PackageCheck className="mr-1.5 h-3.5 w-3.5" />
-                    入庫 (検品)
-                  </button>
+                <div className="mb-5 space-y-2 rounded-xl border border-slate-100 bg-slate-50 p-3">
+                  <div className="flex items-end justify-between text-sm">
+                    <span className="text-xs font-bold text-slate-500">進捗</span>
+                    <span className="font-bold text-slate-800">
+                      <span className={req.delivered_quantity > 0 ? "text-blue-600" : ""}>
+                        {req.delivered_quantity}
+                      </span>
+                      <span className="mx-1 text-xs text-slate-300">/</span>
+                      {req.request_quantity}
+                    </span>
+                  </div>
+                  <ProgressBar
+                    value={progressVal}
+                    max={progressMax}
+                    colorClass={isCompleted ? "bg-green-500" : "bg-blue-500"}
+                  />
                 </div>
-              )}
-            </div>
-          );
-        })
-      )}
+
+                <div className="mt-auto flex items-center justify-between gap-3">
+                  <span
+                    className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[10px] font-bold tracking-wide uppercase ${
+                      req.status === "PENDING"
+                        ? "bg-yellow-100 text-yellow-700"
+                        : req.status === "PARTIAL"
+                          ? "bg-orange-100 text-orange-700"
+                          : req.status === "DELIVERED"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    {req.status === "PENDING" && "発注中"}
+                    {req.status === "PARTIAL" && `残 ${backlog}`}
+                    {req.status === "DELIVERED" && "完了"}
+                    {req.status === "CANCELLED" && "取消済"}
+                  </span>
+
+                  {canAction && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => onCancelRequest(req.request_id)}
+                        className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
+                        title="キャンセル"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={() => onOpenPartialDelivery(req)}
+                        className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white shadow-md shadow-blue-200 transition-all hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-blue-300"
+                      >
+                        <PackageCheck className="h-4 w-4" />
+                        入庫
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
     </div>
   </div>
 );
 
-// Component: Modal tạo yêu cầu nhập hàng
+// 4. Request Modal (Updated Design)
 const RequestFactoryModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -433,74 +553,97 @@ const RequestFactoryModal: React.FC<{
   if (!isOpen || !target) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm">
-      <div className="animate-in fade-in zoom-in-95 w-full max-w-lg overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl duration-200">
-        <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-6 py-4">
+    <div className="animate-in fade-in fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm transition-all">
+      <div className="animate-in zoom-in-95 w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-100 bg-white px-6 py-4">
           <div>
-            <div className="text-lg font-bold text-gray-800">工場へ追加焼成を依頼</div>
-            <div className="mt-1 text-xs text-gray-500">
-              対象商品: <span className="font-semibold text-gray-700">{target.product_name}</span>
+            <div className="text-xl font-black text-slate-800">工場へ発注依頼</div>
+            <div className="mt-1 text-xs font-bold text-slate-500">
+              必要な数量を入力してください
             </div>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-2 text-gray-500 hover:bg-gray-200"
-            aria-label="close"
+            className="rounded-full bg-slate-100 p-2 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="space-y-4 p-6">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
-              <div className="text-xs font-bold text-gray-500 uppercase">現在在庫</div>
-              <div className="mt-1 text-2xl font-bold text-gray-800">{target.current_stock}</div>
+
+        <div className="p-6">
+          <div className="mb-6 flex items-center gap-4 rounded-xl border border-orange-100 bg-orange-50 p-4">
+            <div className="rounded-full bg-white p-2 shadow-sm">
+              <Factory className="h-6 w-6 text-orange-600" />
             </div>
-            <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
-              <div className="text-xs font-bold text-gray-500 uppercase">基準値 (Min)</div>
-              <div className="mt-1 text-2xl font-bold text-gray-800">{target.threshold}</div>
+            <div>
+              <div className="text-xs font-bold text-orange-800/70 uppercase">対象商品</div>
+              <div className="text-lg font-black text-slate-900">{target.product_name}</div>
             </div>
           </div>
-          <div>
-            <label className="text-xs font-bold text-gray-700 uppercase">依頼数量</label>
-            <input
-              type="number"
-              min={1}
-              value={qty}
-              onChange={(e) => onQtyChange(Number.parseInt(e.target.value) || 1)}
-              className="mt-1 w-full rounded-xl border border-gray-300 px-4 py-3 text-lg font-bold text-gray-800 transition-all outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
-            />
+
+          <div className="mb-5 grid grid-cols-2 gap-4">
+            <div className="space-y-1 rounded-xl border border-slate-100 bg-slate-50 p-3">
+              <label className="text-[10px] font-bold text-slate-400 uppercase">現在在庫</label>
+              <div className="text-2xl font-black text-slate-800">{target.current_stock}</div>
+            </div>
+            <div className="space-y-1 rounded-xl border border-slate-100 bg-slate-50 p-3">
+              <label className="text-[10px] font-bold text-slate-400 uppercase">基準値 (Min)</label>
+              <div className="text-2xl font-black text-slate-400">{target.threshold}</div>
+            </div>
           </div>
-          <div>
-            <label className="text-xs font-bold text-gray-700 uppercase">到着予定</label>
-            <input
-              type="datetime-local"
-              value={eta}
-              onChange={(e) => onEtaChange(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-bold text-gray-700 uppercase">メモ（任意）</label>
-            <textarea
-              value={note}
-              onChange={(e) => onNoteChange(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
-              rows={2}
-              placeholder="例）急ぎ、追加で10個お願いします"
-            />
+
+          <div className="space-y-5">
+            <div>
+              <label className="mb-1.5 block text-sm font-bold text-slate-700">依頼数量</label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min={1}
+                  value={qty}
+                  onChange={(e) => onQtyChange(Number.parseInt(e.target.value) || 1)}
+                  className="w-full rounded-xl border border-slate-300 px-4 py-3 text-lg font-bold text-slate-800 transition-all outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
+                />
+                <span className="absolute top-1/2 right-4 -translate-y-1/2 font-bold text-slate-400">
+                  個
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-bold text-slate-700">到着予定日時</label>
+              <input
+                type="datetime-local"
+                value={eta}
+                onChange={(e) => onEtaChange(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-700 transition-all outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-bold text-slate-700">
+                メモ <span className="font-normal text-slate-400">(任意)</span>
+              </label>
+              <textarea
+                value={note}
+                onChange={(e) => onNoteChange(e.target.value)}
+                className="w-full resize-none rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-700 transition-all outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
+                rows={2}
+                placeholder="例）急ぎでお願いします"
+              />
+            </div>
           </div>
         </div>
-        <div className="flex justify-end gap-2 border-t border-gray-200 bg-gray-50 px-6 py-4">
+
+        <div className="flex justify-end gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4">
           <button
             onClick={onClose}
-            className="rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-100"
+            className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-100"
           >
             キャンセル
           </button>
           <button
             onClick={onSubmit}
-            className="rounded-xl bg-orange-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-orange-200 transition-all hover:bg-orange-700 hover:shadow-none"
+            className="rounded-xl bg-orange-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-orange-200 transition-all hover:-translate-y-0.5 hover:bg-orange-700 hover:shadow-orange-300"
           >
             依頼を送信
           </button>
@@ -510,7 +653,7 @@ const RequestFactoryModal: React.FC<{
   );
 };
 
-// Component: Modal kiểm tra đặt hàng tự động
+// 5. Auto Order Modal (Updated)
 const AutoOrderModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -524,82 +667,115 @@ const AutoOrderModal: React.FC<{
     if (a.should_order !== b.should_order) return b.should_order ? 1 : -1;
     return a.current_stock - b.current_stock;
   });
-
   const productsToOrder = sortedResults.filter((r) => r.should_order);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm">
-      <div className="animate-in zoom-in-95 max-h-[85vh] w-full max-w-2xl overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-6 py-4">
-          <div>
-            <div className="flex items-center gap-2 text-lg font-bold text-gray-800">
-              <Zap className="h-5 w-5 fill-orange-500 text-orange-500" />
-              自動発注チェック結果
+    <div className="animate-in fade-in fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+      <div className="animate-in zoom-in-95 flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-100 bg-white px-6 py-5">
+          <div className="flex items-center gap-3">
+            <div className="rounded-full bg-purple-100 p-2">
+              <Zap className="h-5 w-5 fill-purple-600 text-purple-600" />
             </div>
-            <div className="mt-1 text-xs text-gray-500">在庫不足商品を検出しました</div>
+            <div>
+              <h2 className="text-lg font-black text-slate-800">自動発注チェック結果</h2>
+              {/* <p className="text-xs font-bold text-slate-500">AIが在庫不足を検出しました</p> */}
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-2 text-gray-500 hover:bg-gray-200"
-            aria-label="close"
+            className="rounded-full bg-slate-100 p-2 transition-colors hover:bg-slate-200"
           >
-            <X className="h-5 w-5" />
+            <X className="h-5 w-5 text-slate-400" />
           </button>
         </div>
-        <div className="max-h-[50vh] space-y-3 overflow-y-auto bg-gray-50/50 p-6">
-          {sortedResults.map((result) => (
-            <div
-              key={result.product_id}
-              className={`rounded-xl border p-4 transition-all ${result.should_order ? "border-orange-200 bg-white shadow-sm" : "border-gray-200 bg-gray-100 opacity-60"}`}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-bold text-gray-800">{result.product_name}</div>
-                  <div className="mt-1 flex gap-2 text-xs text-gray-500">
-                    <span className="rounded bg-gray-100 px-1.5 py-0.5">
-                      在庫: {result.current_stock}
-                    </span>
-                    <span className="rounded bg-gray-100 px-1.5 py-0.5">
-                      基準: {result.reorder_point}
-                    </span>
-                  </div>
-                </div>
-                {result.should_order ? (
-                  <div className="text-right">
-                    <div className="inline-flex items-center rounded-lg border border-orange-100 bg-orange-50 px-3 py-1.5 text-sm font-bold text-orange-700">
-                      発注推奨: {result.suggested_quantity}個
+
+        <div className="custom-scrollbar flex-1 overflow-y-auto bg-slate-50 p-6">
+          <div className="space-y-3">
+            {sortedResults.map((result) => (
+              <div
+                key={result.product_id}
+                className={`flex items-center justify-between rounded-xl border p-4 transition-all ${
+                  result.should_order
+                    ? "border-orange-200 bg-white shadow-sm"
+                    : "border-slate-200 bg-slate-100/50 opacity-60 grayscale"
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <div
+                    className={`h-3 w-3 rounded-full shadow-sm ${result.should_order ? "animate-pulse bg-orange-500" : "bg-slate-300"}`}
+                  ></div>
+                  <div>
+                    <div className="font-bold text-slate-800">{result.product_name}</div>
+                    <div className="mt-1 flex items-center gap-3 text-xs font-medium text-slate-500">
+                      <span className="flex items-center gap-1 rounded border border-slate-200 bg-slate-100 px-2 py-0.5">
+                        在庫: <b className="text-slate-800">{result.current_stock}</b>
+                      </span>
+                      <span className="flex items-center gap-1 rounded border border-slate-200 bg-slate-100 px-2 py-0.5">
+                        基準: <b className="text-slate-800">{result.reorder_point}</b>
+                      </span>
                     </div>
                   </div>
+                </div>
+
+                {result.should_order ? (
+                  <div className="text-right">
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase">
+                      推奨発注数
+                    </span>
+                    <span className="text-xl font-black text-orange-600">
+                      {result.suggested_quantity}
+                    </span>
+                    <span className="ml-1 text-xs font-bold text-orange-600">個</span>
+                  </div>
                 ) : (
-                  <div className="text-xs font-medium text-gray-400">{result.skip_reason}</div>
+                  <div className="rounded-lg bg-slate-200 px-3 py-1 text-xs font-bold text-slate-500">
+                    対象外: {result.skip_reason}
+                  </div>
                 )}
               </div>
-            </div>
-          ))}
-        </div>
-        <div className="flex items-center justify-between border-t border-gray-200 bg-white px-6 py-4">
-          <div className="text-sm font-bold text-gray-600">
-            発注対象: <span className="ml-1 text-xl text-orange-600">{productsToOrder.length}</span>{" "}
-            件
+            ))}
           </div>
-          <div className="flex gap-3">
-            <button
-              onClick={onClose}
-              className="rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-100"
-            >
-              閉じる
-            </button>
-            <button
-              onClick={onSubmit}
-              disabled={productsToOrder.length === 0 || isSubmitting}
-              className={`rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-lg transition-all ${
-                productsToOrder.length === 0 || isSubmitting
-                  ? "cursor-not-allowed bg-gray-300 shadow-none"
-                  : "bg-orange-600 shadow-orange-200 hover:bg-orange-700 hover:shadow-none"
-              }`}
-            >
-              {isSubmitting ? "処理中..." : "一括発注を実行"}
-            </button>
+        </div>
+
+        <div className="border-t border-slate-100 bg-white px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-slate-400 uppercase">発注対象</span>
+              <span className="text-2xl font-black text-slate-800">
+                {productsToOrder.length}{" "}
+                <span className="text-base font-bold text-slate-500">件</span>
+              </span>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={onClose}
+                className="rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50"
+              >
+                閉じる
+              </button>
+              <button
+                onClick={onSubmit}
+                disabled={productsToOrder.length === 0 || isSubmitting}
+                className={`flex items-center gap-2 rounded-xl px-8 py-3 text-sm font-bold text-white shadow-lg transition-all ${
+                  productsToOrder.length === 0 || isSubmitting
+                    ? "cursor-not-allowed bg-slate-300 shadow-none"
+                    : "bg-purple-600 shadow-purple-200 hover:-translate-y-0.5 hover:bg-purple-700 hover:shadow-purple-300"
+                }`}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    処理中...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="h-4 w-4 fill-white" />
+                    一括発注を実行
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -607,8 +783,7 @@ const AutoOrderModal: React.FC<{
   );
 };
 
-// Component: Modal xử lý nhập kho (Check-in hàng)
-// Được thiết kế lại để cho phép nhập số lượng thực tế và lý do nếu có chênh lệch
+// 6. Receive Goods Modal (Updated)
 const ReceiveGoodsModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -620,15 +795,12 @@ const ReceiveGoodsModal: React.FC<{
   onSubmit: () => void;
 }> = ({ isOpen, onClose, target, qty, note, onQtyChange, onNoteChange, onSubmit }) => {
   const [error, setError] = React.useState("");
-
   if (!isOpen || !target) return null;
 
-  // Tính số lượng còn thiếu cần nhập
   const backlog = calculateBacklog(target);
   const isQuantityChanged = qty !== backlog;
 
   const handleSubmit = () => {
-    // Validation: Nếu nhập số lượng khác với số lượng còn lại, bắt buộc phải có lý do
     if (isQuantityChanged && (!note || note.trim() === "")) {
       setError("数量が変更されています。理由を入力してください。");
       return;
@@ -638,120 +810,118 @@ const ReceiveGoodsModal: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-      <div className="animate-in fade-in zoom-in-95 w-full max-w-md overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl duration-200">
-        <div className="border-b border-gray-100 bg-blue-50/50 px-6 py-4">
+    <div className="animate-in fade-in fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+      <div className="animate-in zoom-in-95 w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-5 text-white">
           <div className="flex items-center justify-between">
-            <h3 className="flex items-center gap-2 text-lg font-bold text-gray-800">
-              <PackageCheck className="h-5 w-5 text-blue-600" />
+            <h3 className="flex items-center gap-2 text-lg font-bold">
+              <PackageCheck className="h-5 w-5" />
               入庫処理 (検品)
             </h3>
             <button
               onClick={onClose}
-              className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-white hover:text-gray-600"
+              className="rounded-full bg-white/20 p-1.5 text-white transition-colors hover:bg-white/30"
             >
-              <X className="h-5 w-5" />
+              <X className="h-4 w-4" />
             </button>
           </div>
-          <div className="mt-1 text-sm font-medium text-blue-700">{target.product_name}</div>
+          <div className="mt-2 text-sm font-medium opacity-90">{target.product_name}</div>
         </div>
 
         <div className="space-y-6 p-6">
-          {/* Thông tin so sánh */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-center">
-              <div className="text-xs font-bold text-gray-400 uppercase">未納品分</div>
-              <div className="text-2xl font-black text-gray-700">{backlog}</div>
+          <div className="flex gap-4">
+            <div className="flex-1 rounded-xl border border-slate-100 bg-slate-50 p-3 text-center">
+              <div className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+                未納品分
+              </div>
+              <div className="text-2xl font-black text-slate-700">{backlog}</div>
             </div>
-            <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-center">
-              <div className="text-xs font-bold text-blue-400 uppercase">今回入庫</div>
+            <div className="flex items-center text-slate-300">
+              <ArrowRight className="h-6 w-6" />
+            </div>
+            <div className="flex-1 rounded-xl border border-blue-100 bg-blue-50 p-3 text-center ring-2 ring-blue-100 ring-offset-2">
+              <div className="text-[10px] font-bold tracking-wider text-blue-500 uppercase">
+                今回入庫
+              </div>
               <div className="text-2xl font-black text-blue-700">{qty}</div>
             </div>
           </div>
 
-          {/* Input số lượng thực tế */}
           <div>
-            <label className="mb-2 block text-xs font-bold text-gray-700 uppercase">
-              実際の入庫数 (変更可能)
+            <label className="mb-2 block text-xs font-bold text-slate-700 uppercase">
+              実際の入庫数
+              {isQuantityChanged && (
+                <span className="ml-2 text-[10px] font-normal text-orange-500 normal-case">
+                  (変更あり)
+                </span>
+              )}
             </label>
-            <div className="relative">
-              <input
-                type="number"
-                min={0}
-                value={qty}
-                onChange={(e) => onQtyChange(Number.parseInt(e.target.value) || 0)}
-                className={`w-full rounded-xl border-2 px-4 py-3 text-xl font-bold transition-colors outline-none ${
-                  isQuantityChanged
-                    ? "border-orange-300 bg-orange-50 text-orange-800 focus:border-orange-500"
-                    : "border-gray-200 bg-white text-gray-800 focus:border-blue-500"
-                }`}
-              />
-              <span className="absolute top-1/2 right-4 -translate-y-1/2 text-sm font-bold text-gray-400">
-                個
-              </span>
-            </div>
-            {isQuantityChanged && (
-              <div className="mt-2 flex items-center gap-1 text-xs font-bold text-orange-600">
-                <AlertTriangle className="h-3 w-3" />
-                注文残数と異なります
-              </div>
-            )}
+            <input
+              type="number"
+              min={0}
+              value={qty}
+              onChange={(e) => onQtyChange(Number.parseInt(e.target.value) || 0)}
+              className={`w-full rounded-xl border-2 px-4 py-3 text-xl font-bold transition-all outline-none ${
+                isQuantityChanged
+                  ? "border-orange-300 bg-orange-50 text-orange-800 focus:border-orange-500"
+                  : "border-slate-200 bg-white text-slate-800 focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
+              }`}
+            />
           </div>
 
-          {/* Input lý do (Chỉ hiện/bắt buộc khi thay đổi số lượng) */}
           <div
-            className={`transition-all duration-300 ${isQuantityChanged ? "max-h-40 opacity-100" : "max-h-40 opacity-50 grayscale"}`}
+            className={`overflow-hidden transition-all duration-300 ${isQuantityChanged ? "max-h-40 opacity-100" : "max-h-20 opacity-60"}`}
           >
-            <label className="mb-2 block text-xs font-bold text-gray-700 uppercase">
-              備考 / 変更理由{" "}
-              <span className="text-red-500">{isQuantityChanged ? "(必須)" : "(任意)"}</span>
+            <label className="mb-2 block text-xs font-bold text-slate-700 uppercase">
+              備考 / 変更理由
+              <span
+                className={`ml-1 ${isQuantityChanged ? "text-red-500" : "font-normal text-slate-400"}`}
+              >
+                {isQuantityChanged ? "(必須)" : "(任意)"}
+              </span>
             </label>
             <input
               type="text"
               value={note}
               onChange={(e) => onNoteChange(e.target.value)}
-              disabled={!isQuantityChanged}
               placeholder={isQuantityChanged ? "例: 在庫不足のため3個のみ納品" : "変更なし"}
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:text-gray-400"
+              className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-bold text-slate-700 transition-all outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
             />
           </div>
 
           {error && (
-            <div className="flex items-center gap-2 rounded-lg border border-red-100 bg-red-50 p-3 text-xs font-bold text-red-600">
-              <AlertTriangle className="h-4 w-4 shrink-0" />
-              {error}
+            <div className="animate-in slide-in-from-top-2 flex items-start gap-3 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-600">
+              <AlertCircle className="h-5 w-5 shrink-0" />
+              <span className="font-bold">{error}</span>
             </div>
           )}
         </div>
 
-        <div className="flex justify-end gap-3 border-t border-gray-100 bg-gray-50 px-6 py-4">
+        <div className="flex justify-end gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4">
           <button
             onClick={onClose}
-            className="rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-bold text-gray-600 transition-colors hover:bg-gray-100"
+            className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-100"
           >
             キャンセル
           </button>
           <button
             onClick={handleSubmit}
             disabled={qty < 0}
-            className="flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-200 transition-all hover:bg-blue-700 hover:shadow-none disabled:opacity-50 disabled:shadow-none"
+            className="flex items-center gap-2 rounded-xl bg-blue-600 px-8 py-3 text-sm font-bold text-white shadow-lg shadow-blue-200 transition-all hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-blue-300 disabled:opacity-50 disabled:shadow-none"
           >
             <PackageCheck className="h-4 w-4" />
-            入庫を確定
+            確定する
           </button>
         </div>
       </div>
     </div>
   );
 };
-//#endregion
 
-// Component chính: Trang quản lý tồn kho
+// --- MAIN PAGE ---
+
 const InventoryPage: React.FC = () => {
-  // Lấy dữ liệu global từ Store (Zustand)
   const { products, inventory, updateInventory } = useStore();
-
-  // State local của trang
   const [categories, setCategories] = useState<Category[]>([]);
   const [factoryRequests, setFactoryRequests] = useState<FactoryRequest[]>([]);
   const [isLoadingFactoryRequests, setIsLoadingFactoryRequests] = useState<boolean>(true);
@@ -761,7 +931,7 @@ const InventoryPage: React.FC = () => {
   const [isAutoOrdering, setIsAutoOrdering] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<"inventory" | "history">("inventory");
 
-  // State quản lý các modal
+  // Modal States
   const [requestModal, setRequestModal] = useState({
     isOpen: false,
     target: null as {
@@ -778,29 +948,27 @@ const InventoryPage: React.FC = () => {
     isOpen: false,
     results: [] as AutoOrderCheckResult[],
   });
-
-  // State cho modal nhập kho (Receive Goods)
   const [receiveGoodsModal, setReceiveGoodsModal] = useState({
     isOpen: false,
     target: null as FactoryRequest | null,
     qty: 0,
     note: "",
   });
-
-  // State quản lý bộ lọc cho tab lịch sử
   const [historyFilters, setHistoryFilters] = useState({
     status: "all",
     date: new Date().toISOString().split("T")[0],
     sortBy: "newest",
   });
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmResetAgain, setConfirmResetAgain] = useState(false);
 
-  // Fetch dữ liệu ban đầu
+  // --- Effects ---
   useEffect(() => {
     const fetchCats = async () => {
       try {
         setCategories(await getCategories());
       } catch (e) {
-        console.error("Failed to load categories:", e);
+        console.error(e);
       }
     };
     fetchCats();
@@ -813,7 +981,7 @@ const InventoryPage: React.FC = () => {
         const requests = await getAllFactoryRequests();
         setFactoryRequests(requests);
       } catch (error) {
-        console.error("Failed to fetch factory requests:", error);
+        console.error(error);
         setFactoryRequests([]);
       } finally {
         setIsLoadingFactoryRequests(false);
@@ -822,8 +990,7 @@ const InventoryPage: React.FC = () => {
     fetchFactoryRequests();
   }, []);
 
-  // #region Memoized Data
-
+  // --- Memos ---
   const mergedData = useMemo(() => {
     return products
       .filter((p) => p.type !== "drink" && p.type !== "alcohol")
@@ -847,24 +1014,17 @@ const InventoryPage: React.FC = () => {
       return true;
     });
     return filtered.sort((a, b) => {
-      switch (historyFilters.sortBy) {
-        case "oldest":
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-        case "product":
-          return a.product_name.localeCompare(b.product_name, "ja");
-        default:
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      }
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
   }, [factoryRequests, historyFilters]);
 
-  // #endregion
-
-  // #region Handlers
-
-  const handleHistoryFilterChange = useCallback((filters: { date?: string; sortBy?: string }) => {
-    setHistoryFilters((prev) => ({ ...prev, ...filters }));
-  }, []);
+  // --- Handlers ---
+  const handleHistoryFilterChange = useCallback(
+    (filters: { date?: string; sortBy?: string; status?: string }) => {
+      setHistoryFilters((prev) => ({ ...prev, ...filters }));
+    },
+    []
+  );
 
   const openRequestModal = useCallback(
     (product_id: string, product_name: string, stock: number, threshold: number) => {
@@ -919,51 +1079,38 @@ const InventoryPage: React.FC = () => {
     }
   };
 
-  // Reset logic
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmResetAgain, setConfirmResetAgain] = useState(false);
-
   const handleResetDailyInventory = () => setConfirmOpen(true);
 
-  const doResetDailyInventory = async () => {
-    if (isResetDone) {
+  const resetLogic = async (isRetry = false) => {
+    if (isResetDone && !isRetry) {
       setConfirmResetAgain(true);
       setConfirmOpen(false);
       return;
     }
     setConfirmOpen(false);
-    setIsResetting(true);
-    try {
-      const ids = products
-        .filter((p) => p.type !== "drink" && p.type !== "alcohol")
-        .map((p) => p.product_id);
-      await resetDailyInventory(ids, AUTO_ORDER_CONFIG.DEFAULT_START_QUANTITY);
-      ids.forEach((id) => updateInventory(id, AUTO_ORDER_CONFIG.DEFAULT_START_QUANTITY));
-      markInventoryResetDone();
-      setIsResetDone(true);
-      setBusinessDate(getCurrentBusinessDate());
-      toast.success("在庫リセット完了！");
-    } catch (error) {
-      toast.error("リセット失敗");
-    } finally {
-      setIsResetting(false);
-    }
-  };
-
-  const doResetAgain = async () => {
     setConfirmResetAgain(false);
     setIsResetting(true);
     try {
-      const ids = products
+      const foodIds = products
         .filter((p) => p.type !== "drink" && p.type !== "alcohol")
         .map((p) => p.product_id);
-      await resetDailyInventory(ids, AUTO_ORDER_CONFIG.DEFAULT_START_QUANTITY);
-      ids.forEach((id) => updateInventory(id, AUTO_ORDER_CONFIG.DEFAULT_START_QUANTITY));
+      const drinkIds = products.filter((p) => p.type === "drink").map((p) => p.product_id);
+      const alcoholIds = products.filter((p) => p.type === "alcohol").map((p) => p.product_id);
+      await resetDailyInventory(foodIds, AUTO_ORDER_CONFIG.DEFAULT_START_QUANTITY);
+      foodIds.forEach((id) => updateInventory(id, AUTO_ORDER_CONFIG.DEFAULT_START_QUANTITY));
+      if (drinkIds.length > 0) {
+        await resetDailyInventory(drinkIds, 99);
+        drinkIds.forEach((id) => updateInventory(id, 99));
+      }
+      if (alcoholIds.length > 0) {
+        await resetDailyInventory(alcoholIds, 99);
+        alcoholIds.forEach((id) => updateInventory(id, 99));
+      }
       markInventoryResetDone();
       setIsResetDone(true);
       setBusinessDate(getCurrentBusinessDate());
-      toast.success("再リセット完了！");
-    } catch (error) {
+      toast.success(isRetry ? "再リセット完了！" : "在庫リセット完了！");
+    } catch (e) {
       toast.error("リセット失敗");
     } finally {
       setIsResetting(false);
@@ -1000,9 +1147,7 @@ const InventoryPage: React.FC = () => {
     }
   };
 
-  // --- LOGIC NHẬP KHO (QUAN TRỌNG) ---
   const openReceiveGoodsModal = (req: FactoryRequest) => {
-    // Mặc định nhập số lượng còn lại
     const remaining = req.request_quantity - req.delivered_quantity;
     setReceiveGoodsModal({
       isOpen: true,
@@ -1015,26 +1160,14 @@ const InventoryPage: React.FC = () => {
   const handleReceiveGoods = async () => {
     const { target, qty, note } = receiveGoodsModal;
     if (!target) return;
-
     try {
-      // 1. Cập nhật tồn kho DB và Store (Cộng thẳng số lượng vừa nhập vào kho)
       const currentStock =
         inventory.find((i) => i.product_id === target.product_id)?.current_quantity ?? 0;
       await adjustInventory(target.product_id, currentStock + qty);
       updateInventory(target.product_id, currentStock + qty);
-
-      // 2. Tính toán tổng số lượng đã giao
       const newDeliveredQty = target.delivered_quantity + qty;
-
-      // 3. Quyết định trạng thái: Nếu đã nhận đủ hoặc hơn -> DELIVERED, ngược lại là PARTIAL
       const newStatus = newDeliveredQty >= target.request_quantity ? "DELIVERED" : "PARTIAL";
-
-      // 4. Lưu vào DB (Gửi kèm note nếu API hỗ trợ, hoặc chỉ log)
-      // *Lưu ý: API updateFactoryRequestStatus có thể cần update thêm để nhận note nếu backend hỗ trợ.
-      // Ở đây giả định ta cập nhật trạng thái và số lượng.
       const updatedReq = await updateFactoryRequestStatus(target.request_id, newStatus);
-
-      // Update local state
       setFactoryRequests((prev) =>
         prev.map((r) =>
           r.request_id === target.request_id
@@ -1042,99 +1175,96 @@ const InventoryPage: React.FC = () => {
             : r
         )
       );
-
-      toast.success(
-        newStatus === "DELIVERED"
-          ? `入庫完了！ (全数納品)`
-          : `入庫記録: ${qty}個 (残${target.request_quantity - newDeliveredQty})`
-      );
+      toast.success(newStatus === "DELIVERED" ? `入庫完了！` : `入庫記録: ${qty}個`);
       setReceiveGoodsModal({ isOpen: false, target: null, qty: 0, note: "" });
     } catch (error) {
-      console.error("Failed to process receive goods:", error);
+      console.error(error);
       toast.error("入庫処理に失敗しました。");
     }
   };
 
-  //#endregion
-
-  const { isNow: isAutoOrderTime, hour: nextCheckHour } = getNextAutoOrderCheck(
-    new Date().getHours()
-  );
-
   return (
-    <div className="h-full overflow-y-auto bg-gray-50 p-8 font-sans">
-      <div className="mb-6">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">在庫管理</h1>
-            <div className="mt-2 flex items-center gap-4">
-              <span className="rounded-full border border-gray-200 bg-white px-3 py-1 text-sm font-bold text-gray-500">
-                営業日: <span className="text-blue-600">{businessDate}</span>
-              </span>
-              {isResetDone && (
-                <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-1 text-xs font-bold text-green-700">
-                  <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
-                  リセット済み
-                </span>
-              )}
+    <div className="flex h-full flex-col bg-slate-50/50 p-6 font-sans text-slate-800">
+      {/* Page Header */}
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="flex items-center gap-3 text-3xl font-black tracking-tight text-slate-900">
+            <Factory className="h-8 w-8 text-orange-600" />
+            在庫管理
+          </h1>
+          <div className="mt-2 flex items-center gap-3">
+            <div className="flex items-center gap-2 rounded-xl border border-slate-100 bg-white px-4 py-2 text-sm font-bold text-slate-600 shadow-sm">
+              <span className="text-slate-400">営業日:</span>
+              <span className="font-mono text-blue-600">{businessDate}</span>
             </div>
+            {isResetDone && (
+              <span className="inline-flex items-center gap-1.5 rounded-xl border border-green-100 bg-green-50 px-3 py-2 text-xs font-bold text-green-700 shadow-sm">
+                <CheckCircle2 className="h-4 w-4" />
+                リセット完了
+              </span>
+            )}
           </div>
         </div>
-        <div className="mt-6 flex border-b border-gray-200">
+
+        {/* Tab Switcher (Segmented Control Style) */}
+        <div className="flex rounded-xl bg-slate-200/50 p-1.5 shadow-inner">
           {(["inventory", "history"] as const).map((tab) => (
             <button
               key={tab}
-              className={`rounded-t-lg px-8 py-3 text-sm font-bold transition-all focus:outline-none ${
-                activeTab === tab
-                  ? "border-b-2 border-blue-600 bg-white text-blue-600 shadow-sm"
-                  : "border-b-2 border-transparent text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-              }`}
               onClick={() => setActiveTab(tab)}
+              className={`relative flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-bold transition-all duration-200 ${
+                activeTab === tab
+                  ? "bg-white text-slate-800 shadow-sm"
+                  : "text-slate-500 hover:bg-slate-200/50 hover:text-slate-700"
+              }`}
             >
+              {tab === "inventory" ? <Box className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
               {tab === "inventory" ? "在庫一覧" : "発注履歴"}
             </button>
           ))}
         </div>
       </div>
 
-      {activeTab === "inventory" && (
-        <InventoryTable
-          data={mergedData}
-          factoryRequests={factoryRequests}
-          onOpenRequestModal={openRequestModal}
-          handleResetDailyInventory={handleResetDailyInventory}
-          isResetting={isResetting}
-          handleAutoOrderCheck={handleAutoOrderCheck}
-          isAutoOrdering={isAutoOrdering}
-        />
-      )}
+      {/* Main Content Area */}
+      <div className="flex-1 overflow-hidden">
+        {activeTab === "inventory" ? (
+          <InventoryTable
+            data={mergedData}
+            factoryRequests={factoryRequests}
+            onOpenRequestModal={openRequestModal}
+            handleResetDailyInventory={handleResetDailyInventory}
+            isResetting={isResetting}
+            handleAutoOrderCheck={handleAutoOrderCheck}
+            isAutoOrdering={isAutoOrdering}
+          />
+        ) : (
+          <HistoryTabContent
+            requests={filteredHistoryRequests}
+            filters={historyFilters}
+            onFiltersChange={handleHistoryFilterChange}
+            isLoading={isLoadingFactoryRequests}
+            onOpenPartialDelivery={openReceiveGoodsModal}
+            onCancelRequest={cancelFactoryRequest}
+            businessDate={businessDate}
+            handleAutoOrderCheck={handleAutoOrderCheck}
+            isAutoOrdering={isAutoOrdering}
+          />
+        )}
+      </div>
 
-      {activeTab === "history" && (
-        <HistoryTabContent
-          requests={filteredHistoryRequests}
-          filters={historyFilters}
-          onFiltersChange={handleHistoryFilterChange}
-          isLoading={isLoadingFactoryRequests}
-          onOpenPartialDelivery={openReceiveGoodsModal}
-          onCancelRequest={cancelFactoryRequest}
-          businessDate={businessDate}
-        />
-      )}
-
-      {/* Dialogs & Modals */}
+      {/* Modals */}
       <ConfirmDialog
         open={confirmOpen}
         message="本当に新しい日を開始しますか？"
-        onConfirm={doResetDailyInventory}
+        onConfirm={() => resetLogic(false)}
         onCancel={() => setConfirmOpen(false)}
       />
       <ConfirmDialog
         open={confirmResetAgain}
         message="既にリセット済みです。再実行しますか？"
-        onConfirm={doResetAgain}
+        onConfirm={() => resetLogic(true)}
         onCancel={() => setConfirmResetAgain(false)}
       />
-
       <RequestFactoryModal
         isOpen={requestModal.isOpen}
         onClose={() => setRequestModal((prev) => ({ ...prev, isOpen: false }))}
@@ -1144,7 +1274,6 @@ const InventoryPage: React.FC = () => {
         onNoteChange={(note) => setRequestModal((prev) => ({ ...prev, note }))}
         onSubmit={handleCreateFactoryRequest}
       />
-
       <AutoOrderModal
         isOpen={autoOrderModal.isOpen}
         onClose={() => setAutoOrderModal({ isOpen: false, results: [] })}
@@ -1152,8 +1281,6 @@ const InventoryPage: React.FC = () => {
         onSubmit={handleExecuteAutoOrder}
         isSubmitting={isAutoOrdering}
       />
-
-      {/* Modal Nhập kho (Receive Goods) */}
       <ReceiveGoodsModal
         isOpen={receiveGoodsModal.isOpen}
         onClose={() => setReceiveGoodsModal({ isOpen: false, target: null, qty: 0, note: "" })}
