@@ -70,7 +70,6 @@ export async function adjustInventory(
 ): Promise<Inventory> {
   const url = buildApiUrl(`${API_ENDPOINTS.INVENTORY}/${productId}`, {
     currentQuantity: currentQuantity.toString(),
-    tram: "acsa",
   });
 
   const data = await apiRequest<InventoryDTO>(url, {
@@ -93,7 +92,7 @@ export async function resetDailyInventory(
   const errors: string[] = [];
   let updated = 0;
 
-  // Thử gọi API bulk reset nếu Backend hỗ trợ
+  // ọi API bulk reset nếu Backend hỗ trợ
   try {
     const url = buildApiUrl(`${API_ENDPOINTS.INVENTORY}/reset-daily`);
     await apiRequest(url, {

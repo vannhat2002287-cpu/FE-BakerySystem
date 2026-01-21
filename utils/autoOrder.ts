@@ -21,7 +21,7 @@ import { getCurrentBusinessDate } from "../api/inventory";
 export const AUTO_ORDER_CONFIG = {
   CHECK_HOURS: [12, 17], // Giờ kiểm tra tự động
   DEFAULT_START_QUANTITY: 20, // Số lượng đầu ngày
-  MIN_ORDER_QUANTITY: 10, // Số lượng đặt tối thiểu
+  MIN_ORDER_QUANTITY: 1, // [FIX] Đổi từ 10 thành 1 để không tự động cộng 10
   DEFAULT_REORDER_POINT: 5, // Điểm đặt hàng lại mặc định
   DEFAULT_ETA_MINUTES: 5, // Thời gian giao hàng dự kiến (phút)
   EXCLUDED_TYPES: ["drink", "alcohol"] as const, // Loại sản phẩm không đặt tự động
@@ -47,16 +47,18 @@ export function calculateSoldToday(
 }
 
 // Tính số lượng cần đặt
-// Gap = Average Daily Sales - Sold Today
-// If Gap < 10 => Order 10, else Order Gap
+// Gap = Doanh số trung bình hàng ngày - Đã bán hôm nay
+// Nếu Gap nhỏ hơn số lượng đặt tối thiểu, sẽ đặt bằng số lượng tối thiểu.
 export function calculateOrderQuantity(averageDailySales: number, soldToday: number): number {
   const gap = averageDailySales - soldToday;
 
-  if (gap < AUTO_ORDER_CONFIG.MIN_ORDER_QUANTITY) {
-    return AUTO_ORDER_CONFIG.MIN_ORDER_QUANTITY;
-  }
+  // [FIX] Logic được làm rõ:
+  // 1. Tính toán số lượng cần bù (gap).
+  // 2. So sánh với số lượng đặt tối thiểu (hiện là 1).
+  // 3. Luôn lấy số lớn hơn để đảm bảo không đặt hàng lắt nhắt dưới mức tối thiểu.
+  const quantityToOrder = Math.max(AUTO_ORDER_CONFIG.MIN_ORDER_QUANTITY, gap);
 
-  return Math.ceil(gap); // Làm tròn lên
+  return Math.ceil(quantityToOrder); // Làm tròn lên số nguyên gần nhất
 }
 
 // Kiểm tra một sản phẩm có cần đặt hàng không
@@ -64,7 +66,7 @@ export function checkProductNeedsOrder(
   product: Product,
   inventory: Inventory,
   activeRequests: FactoryRequest[],
-  averageDailySales: number = 10, // Mặc định nếu chưa có data
+  averageDailySales: number = 0, // [FIX] Mặc định là 0 thay vì 10
   startOfDayQuantity: number = AUTO_ORDER_CONFIG.DEFAULT_START_QUANTITY
 ): AutoOrderCheckResult {
   const result: AutoOrderCheckResult = {
@@ -130,7 +132,7 @@ export async function checkAllProductsForAutoOrder(
       continue;
     }
 
-    const avgSales = averageDailySalesMap.get(product.product_id) || 10;
+    const avgSales = averageDailySalesMap.get(product.product_id) || 0; // [FIX] Mặc định là 0
 
     const result = checkProductNeedsOrder(
       product,

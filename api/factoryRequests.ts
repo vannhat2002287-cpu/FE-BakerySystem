@@ -180,3 +180,16 @@ export async function updatePartialDelivery(
 export function calculateBacklog(request: FactoryRequest): number {
   return Math.max(0, request.request_quantity - request.delivered_quantity);
 }
+
+// Lấy số lượng đề xuất đặt hàng từ Factory (dựa trên tồn kho và đơn hàng hiện có)
+export async function getSuggestedFactoryQuantity(productId: string): Promise<number> {
+  const url = buildApiUrl(`${API_ENDPOINTS.FACTORY_REQUESTS}/suggested-quantity/${productId}`);
+
+  const data = await apiRequest<{
+    productId: number;
+    suggestedQuantity: number;
+    autoCalculated: boolean;
+  }>(url);
+
+  return data.suggestedQuantity;
+}

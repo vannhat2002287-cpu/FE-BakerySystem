@@ -181,6 +181,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           : item
       )
     );
+    refreshInventory();
   };
 
   // Refresh inventory từ API

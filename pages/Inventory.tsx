@@ -1,7 +1,7 @@
 /**
  * @authors Huynh and Hue
  * @description Trang quản lý tồn kho và lịch sử yêu cầu nhập hàng từ nhà máy.
- * @updates Refactored UI/UX for consistency with POS & Dashboard (Slate Theme).
+ * @updates Cập nhật lại UI/UX để đồng bộ với POS & Dashboard (Giao diện Slate).
  */
 import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { useStore } from "@/store/StoreContext";
@@ -47,8 +47,10 @@ import {
   checkAllProductsForAutoOrder,
   executeAutoOrderForAll,
 } from "@/utils/autoOrder";
+import { apiRequest } from "@/api/client";
+import { API_ENDPOINTS, buildApiUrl } from "@/api/config";
 
-// --- UTILS ---
+// --- CÁC HÀM TIỆN ÍCH ---
 const addMinutes = (date: Date, minutes: number) => new Date(date.getTime() + minutes * 60 * 1000);
 
 const formatJa = (iso: string) =>
@@ -61,7 +63,7 @@ const formatJa = (iso: string) =>
     minute: "2-digit",
   });
 
-// Component nhỏ: Thanh tiến độ (Visual Bar) - Slate Style
+// Component nhỏ: Thanh tiến độ (Visual Bar) - Phong cách Slate
 const ProgressBar: React.FC<{ value: number; max: number; colorClass?: string }> = ({
   value,
   max,
@@ -78,9 +80,9 @@ const ProgressBar: React.FC<{ value: number; max: number; colorClass?: string }>
   );
 };
 
-// --- SUB-COMPONENTS ---
+// --- CÁC COMPONENT CON ---
 
-// 1. Confirm Dialog (Slate Style)
+// 1. Hộp thoại xác nhận (Phong cách Slate)
 const ConfirmDialog: React.FC<{
   open: boolean;
   message: string;
@@ -116,7 +118,7 @@ const ConfirmDialog: React.FC<{
   );
 };
 
-// 2. Inventory Table (Slate Style with Hover Effects)
+// 2. Bảng tồn kho (Phong cách Slate với hiệu ứng Hover)
 const InventoryTable: React.FC<{
   data: any[];
   factoryRequests: FactoryRequest[];
@@ -141,7 +143,7 @@ const InventoryTable: React.FC<{
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      {/* Header */}
+      {/* Phần đầu (Header) */}
       <div className="flex flex-col gap-4 border-b border-slate-100 bg-white px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <div className="rounded-xl bg-orange-100 p-2">
@@ -154,7 +156,7 @@ const InventoryTable: React.FC<{
         </div>
 
         <div className="flex flex-1 items-center justify-end gap-3">
-          {/* Search Box */}
+          {/* Ô tìm kiếm */}
           <div className="group relative w-full max-w-xs">
             <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-orange-500" />
             <input
@@ -183,7 +185,7 @@ const InventoryTable: React.FC<{
         </div>
       </div>
 
-      {/* Table */}
+      {/* Bảng dữ liệu */}
       <div className="custom-scrollbar relative flex-1 overflow-auto">
         <table className="w-full border-collapse text-left text-sm">
           <thead className="sticky top-0 z-10 bg-slate-50/95 shadow-sm backdrop-blur-sm">
@@ -327,7 +329,7 @@ const InventoryTable: React.FC<{
   );
 };
 
-// 3. History Tab (Slate Style)
+// 3. Tab Lịch sử (Phong cách Slate)
 const HistoryTabContent: React.FC<{
   requests: FactoryRequest[];
   filters: { date: string; sortBy: string; status: string };
@@ -349,7 +351,7 @@ const HistoryTabContent: React.FC<{
   isAutoOrdering,
 }) => (
   <div className="flex h-full flex-col gap-6">
-    {/* Filter Bar */}
+    {/* Thanh bộ lọc */}
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-wrap items-center gap-3">
@@ -401,7 +403,7 @@ const HistoryTabContent: React.FC<{
       </div>
     </div>
 
-    {/* Grid Content */}
+    {/* Nội dung dạng lưới */}
     <div className="custom-scrollbar flex-1 overflow-y-auto pr-1">
       <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {isLoading ? (
@@ -526,7 +528,7 @@ const HistoryTabContent: React.FC<{
   </div>
 );
 
-// 4. Request Modal (Updated Design)
+// 4. Modal Yêu cầu đặt hàng (Thiết kế cập nhật)
 const RequestFactoryModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -653,7 +655,7 @@ const RequestFactoryModal: React.FC<{
   );
 };
 
-// 5. Auto Order Modal (Updated)
+// 5. Modal Tự động đặt hàng (Cập nhật)
 const AutoOrderModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -783,7 +785,7 @@ const AutoOrderModal: React.FC<{
   );
 };
 
-// 6. Receive Goods Modal (Updated)
+// 6. Modal Nhập hàng (Cập nhật)
 const ReceiveGoodsModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -907,7 +909,11 @@ const ReceiveGoodsModal: React.FC<{
           <button
             onClick={handleSubmit}
             disabled={qty < 0}
-            className="flex items-center gap-2 rounded-xl bg-blue-600 px-8 py-3 text-sm font-bold text-white shadow-lg shadow-blue-200 transition-all hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-blue-300 disabled:opacity-50 disabled:shadow-none"
+            className={`flex items-center gap-2 rounded-xl px-8 py-3 text-sm font-bold text-white shadow-lg transition-all ${
+              qty < 0
+                ? "cursor-not-allowed bg-slate-400 shadow-none"
+                : "bg-blue-600 shadow-blue-200 hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-blue-300"
+            }`}
           >
             <PackageCheck className="h-4 w-4" />
             確定する
@@ -918,7 +924,7 @@ const ReceiveGoodsModal: React.FC<{
   );
 };
 
-// --- MAIN PAGE ---
+// --- TRANG CHÍNH ---
 
 const InventoryPage: React.FC = () => {
   const { products, inventory, updateInventory } = useStore();
@@ -931,7 +937,7 @@ const InventoryPage: React.FC = () => {
   const [isAutoOrdering, setIsAutoOrdering] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<"inventory" | "history">("inventory");
 
-  // Modal States
+  // Trạng thái của các Modal
   const [requestModal, setRequestModal] = useState({
     isOpen: false,
     target: null as {
@@ -940,7 +946,7 @@ const InventoryPage: React.FC = () => {
       current_stock: number;
       threshold: number;
     } | null,
-    qty: 10,
+    qty: 1, // [FIX] Mặc định là 1
     note: "",
     eta: addMinutes(new Date(), 5).toISOString().slice(0, 16),
   });
@@ -962,7 +968,7 @@ const InventoryPage: React.FC = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmResetAgain, setConfirmResetAgain] = useState(false);
 
-  // --- Effects ---
+  // --- Các Effect (Tác vụ khởi chạy/theo dõi) ---
   useEffect(() => {
     const fetchCats = async () => {
       try {
@@ -990,7 +996,7 @@ const InventoryPage: React.FC = () => {
     fetchFactoryRequests();
   }, []);
 
-  // --- Memos ---
+  // --- Các Memo (Dữ liệu được tính toán và ghi nhớ) ---
   const mergedData = useMemo(() => {
     return products
       .filter((p) => p.type !== "drink" && p.type !== "alcohol")
@@ -1018,7 +1024,8 @@ const InventoryPage: React.FC = () => {
     });
   }, [factoryRequests, historyFilters]);
 
-  // --- Handlers ---
+  // --- Các hàm xử lý sự kiện (Handlers) ---
+  // Xử lý thay đổi bộ lọc lịch sử: Cập nhật state filter khi người dùng chọn ngày hoặc trạng thái khác.
   const handleHistoryFilterChange = useCallback(
     (filters: { date?: string; sortBy?: string; status?: string }) => {
       setHistoryFilters((prev) => ({ ...prev, ...filters }));
@@ -1026,20 +1033,42 @@ const InventoryPage: React.FC = () => {
     []
   );
 
+  // Mở modal yêu cầu nhập hàng thủ công: Tính toán số lượng đề xuất
   const openRequestModal = useCallback(
-    (product_id: string, product_name: string, stock: number, threshold: number) => {
-      const recommended = Math.max(1, threshold * 2 - stock);
-      setRequestModal({
-        isOpen: true,
-        target: { product_id, product_name, current_stock: stock, threshold },
-        qty: recommended || 10,
-        note: "",
-        eta: addMinutes(new Date(), 5).toISOString().slice(0, 16),
-      });
+    async (product_id: string, product_name: string, stock: number, threshold: number) => {
+      try {
+        // Gọi BE để lấy số lượng đề xuất
+        const res = await apiRequest<{ quantity: number }>(
+          buildApiUrl(`${API_ENDPOINTS.FACTORY_REQUESTS}/suggested-quantity`, {
+            productId: product_id,
+          })
+        );
+
+        const recommended = res.quantity;
+
+        // Mở modal với số BE trả về
+        setRequestModal({
+          isOpen: true,
+          target: {
+            product_id,
+            product_name,
+            current_stock: stock,
+            threshold,
+          },
+          qty: recommended, // CHỈ DÙNG BE
+          note: "",
+          eta: addMinutes(new Date(), 5).toISOString().slice(0, 16),
+        });
+      } catch (error) {
+        console.error("Failed to get suggested quantity", error);
+        // Hiển thị lỗi để kiểm tra thay vì tự động điền 10
+        toast.error("推奨数量の取得に失敗しました。エラーを確認してください。");
+      }
     },
     []
   );
 
+  // Xử lý gửi yêu cầu nhập hàng mới: Kiểm tra trùng lặp (đã có request pending chưa), gửi API tạo request, và cập nhật danh sách hiển thị.
   const handleCreateFactoryRequest = async () => {
     if (!requestModal.target) return;
     const hasActive = factoryRequests.some(
@@ -1069,6 +1098,7 @@ const InventoryPage: React.FC = () => {
     }
   };
 
+  // Hủy yêu cầu nhập hàng: Gọi API hủy và cập nhật trạng thái trong danh sách local để UI phản hồi ngay.
   const cancelFactoryRequest = async (request_id: string) => {
     try {
       const updatedReq = await updateFactoryRequestStatus(request_id, "CANCELLED");
@@ -1079,8 +1109,14 @@ const InventoryPage: React.FC = () => {
     }
   };
 
+  // Mở dialog xác nhận reset kho: Chỉ đơn giản là bật cờ hiển thị popup xác nhận để tránh bấm nhầm.
   const handleResetDailyInventory = () => setConfirmOpen(true);
 
+  // Logic thực hiện reset kho đầu ngày:
+  // 1. Phân loại sản phẩm (Food, Drink, Alcohol).
+  // 2. Gọi API reset cho từng nhóm với số lượng mặc định (Food: theo config, Drink/Alcohol: 99).
+  // 3. Cập nhật lại store local để UI phản ánh ngay lập tức.
+  // 4. Đánh dấu đã reset xong trong ngày để không nhắc lại.
   const resetLogic = async (isRetry = false) => {
     if (isResetDone && !isRetry) {
       setConfirmResetAgain(true);
@@ -1117,6 +1153,8 @@ const InventoryPage: React.FC = () => {
     }
   };
 
+  // Kiểm tra tự động đặt hàng (AI Check):
+  // Quét toàn bộ sản phẩm, so sánh tồn kho với ngưỡng min, tạo danh sách đề xuất nhập hàng và mở modal kết quả.
   const handleAutoOrderCheck = async () => {
     setIsAutoOrdering(true);
     try {
@@ -1129,6 +1167,8 @@ const InventoryPage: React.FC = () => {
     }
   };
 
+  // Thực thi đặt hàng tự động hàng loạt:
+  // Lọc các sản phẩm được đánh dấu "should_order" từ kết quả check, gọi hàm xử lý hàng loạt, và cập nhật danh sách request.
   const handleExecuteAutoOrder = async () => {
     const productsNeedingOrder = autoOrderModal.results.filter((r) => r.should_order);
     if (productsNeedingOrder.length === 0) return;
@@ -1147,6 +1187,8 @@ const InventoryPage: React.FC = () => {
     }
   };
 
+  // Mở modal nhập hàng (Partial Delivery):
+  // Tính toán số lượng còn thiếu (backlog = yêu cầu - đã giao) để điền sẵn vào ô nhập liệu cho tiện.
   const openReceiveGoodsModal = (req: FactoryRequest) => {
     const remaining = req.request_quantity - req.delivered_quantity;
     setReceiveGoodsModal({
@@ -1157,6 +1199,10 @@ const InventoryPage: React.FC = () => {
     });
   };
 
+  // Xử lý nhập hàng vào kho (Receive Goods):
+  // 1. Lấy tồn kho hiện tại + số lượng thực nhận để cập nhật kho (API adjustInventory).
+  // 2. Tính toán trạng thái mới của request (DELIVERED nếu đủ, PARTIAL nếu thiếu).
+  // 3. Cập nhật trạng thái request lên server và update UI.
   const handleReceiveGoods = async () => {
     const { target, qty, note } = receiveGoodsModal;
     if (!target) return;
@@ -1185,7 +1231,7 @@ const InventoryPage: React.FC = () => {
 
   return (
     <div className="flex h-full flex-col bg-slate-50/50 p-6 font-sans text-slate-800">
-      {/* Page Header */}
+      {/* Tiêu đề trang */}
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="flex items-center gap-3 text-3xl font-black tracking-tight text-slate-900">
@@ -1206,7 +1252,7 @@ const InventoryPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Tab Switcher (Segmented Control Style) */}
+        {/* Bộ chuyển đổi Tab (Kiểu Segmented Control) */}
         <div className="flex rounded-xl bg-slate-200/50 p-1.5 shadow-inner">
           {(["inventory", "history"] as const).map((tab) => (
             <button
@@ -1225,7 +1271,7 @@ const InventoryPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Content Area */}
+      {/* Khu vực nội dung chính */}
       <div className="flex-1 overflow-hidden">
         {activeTab === "inventory" ? (
           <InventoryTable
@@ -1252,7 +1298,7 @@ const InventoryPage: React.FC = () => {
         )}
       </div>
 
-      {/* Modals */}
+      {/* Các Modal */}
       <ConfirmDialog
         open={confirmOpen}
         message="本当に新しい日を開始しますか？"
