@@ -321,6 +321,10 @@ const Dashboard: React.FC = () => {
                       paddingAngle={5}
                       dataKey="value"
                       cornerRadius={6}
+                      isAnimationActive={true}
+                      animationBegin={0}
+                      animationDuration={500}
+                      animationEasing="ease-out"
                     >
                       {typeData.map((entry, index) => (
                         <Cell
