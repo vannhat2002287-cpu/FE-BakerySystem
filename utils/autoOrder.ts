@@ -84,8 +84,8 @@ export function checkProductNeedsOrder(
     return result;
   }
 
-  // Check 2: Stock >= Reorder Point => không cần đặt
-  if (inventory.current_quantity >= result.reorder_point) {
+  // Check 2: Stock > Reorder Point => không cần đặt
+  if (inventory.current_quantity > result.reorder_point) {
     result.skip_reason = "在庫が基準値以上";
     return result;
   }
