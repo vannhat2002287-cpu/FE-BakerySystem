@@ -221,9 +221,7 @@ const InventoryTable: React.FC<{
                   ? "bg-yellow-500"
                   : "bg-green-500";
               const hasActiveReq = factoryRequests.some(
-                (r) =>
-                  r.product_id === item.product_id &&
-                  (r.status === "PENDING" || r.status === "PARTIAL")
+                (r) => r.product_id === item.product_id && r.status === "PENDING"
               );
               const disabledBtn = !isLow || hasActiveReq;
 

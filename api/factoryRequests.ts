@@ -122,7 +122,7 @@ export async function getActiveFactoryRequestsToday(
 
   if (status) return requests;
 
-  return requests.filter((req) => req.status === "PENDING" || req.status === "PARTIAL");
+  return requests.filter((req) => req.status === "PENDING");
 }
 
 // Kiểm tra sản phẩm có đơn hàng đang pending không (No Spam check)

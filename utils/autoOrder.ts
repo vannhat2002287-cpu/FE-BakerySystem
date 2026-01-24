@@ -5,7 +5,7 @@
  * Logic:
  * - Trigger: Chỉ chạy kiểm tra vào 2 khung giờ: 12:00 và 17:00
  * - Condition A: Current Stock < Reorder Point
- * - Condition B: Không có đơn PENDING/PARTIAL cho sản phẩm đó
+ * - Condition B: Không có đơn PENDING cho sản phẩm đó
  * - Ngoại lệ: Bỏ qua drinks
  */
 
