@@ -32,6 +32,8 @@ import {
   updateFactoryRequestStatus,
   FactoryRequest,
   calculateBacklog,
+  FactoryRequestResponseDTO,
+  mapFactoryRequestDTOToFactoryRequest,
 } from "@/api/factoryRequests";
 import {
   adjustInventory,
@@ -419,7 +421,8 @@ const HistoryTabContent: React.FC<{
         ) : (
           requests.map((req) => {
             const backlog = calculateBacklog(req);
-            const canAction = req.status === "PENDING" || req.status === "PARTIAL";
+            // CHỈ cho phép thao tác (Nhập hàng/Hủy) khi đơn đang ở trạng thái PENDING
+            const canAction = req.status === "PENDING";
             const progressVal = req.delivered_quantity;
             const progressMax = req.request_quantity;
             const isCompleted = req.status === "DELIVERED";
@@ -1192,28 +1195,35 @@ const InventoryPage: React.FC = () => {
   };
 
   // Xử lý nhập hàng vào kho (Receive Goods):
-  // 1. Lấy tồn kho hiện tại + số lượng thực nhận để cập nhật kho (API adjustInventory).
-  // 2. Tính toán trạng thái mới của request (DELIVERED nếu đủ, PARTIAL nếu thiếu).
-  // 3. Cập nhật trạng thái request lên server và update UI.
+  // 1. Gửi số lượng thực nhận lên Backend qua API /receive.
+  // 2. Backend sẽ tự động cập nhật số lượng đã lĩnh, tùy biến status (PARTIAL/DELIVERED) và cộng kho.
+  // 3. Cập nhật lại danh sách local từ kết quả trả về của API.
   const handleReceiveGoods = async () => {
-    const { target, qty, note } = receiveGoodsModal;
+    const { target, qty } = receiveGoodsModal;
     if (!target) return;
     try {
-      const currentStock =
-        inventory.find((i) => i.product_id === target.product_id)?.current_quantity ?? 0;
-      await adjustInventory(target.product_id, currentStock + qty);
-      updateInventory(target.product_id, currentStock + qty);
-      const newDeliveredQty = target.delivered_quantity + qty;
-      const newStatus = newDeliveredQty >= target.request_quantity ? "DELIVERED" : "PARTIAL";
-      const updatedReq = await updateFactoryRequestStatus(target.request_id, newStatus);
-      setFactoryRequests((prev) =>
-        prev.map((r) =>
-          r.request_id === target.request_id
-            ? { ...updatedReq, delivered_quantity: newDeliveredQty }
-            : r
-        )
+      // Gọi API nhận hàng thực tế (Mới)
+      const res = await apiRequest<FactoryRequestResponseDTO>(
+        buildApiUrl(`${API_ENDPOINTS.FACTORY_REQUESTS}/${target.request_id}/receive`, {
+          deliveredQuantity: qty,
+        }),
+        { method: "PATCH" }
       );
-      toast.success(newStatus === "DELIVERED" ? `入庫完了！` : `入庫記録: ${qty}個`);
+
+      const updatedReq = mapFactoryRequestDTOToFactoryRequest(res);
+
+      // Cập nhật UI
+      setFactoryRequests((prev) =>
+        prev.map((r) => (r.request_id === target.request_id ? updatedReq : r))
+      );
+
+      // Cập nhật lại kho ở local Store để UI Inventory thay đổi ngay
+      updateInventory(
+        updatedReq.product_id,
+        (inventory.find((i) => i.product_id === updatedReq.product_id)?.current_quantity ?? 0) + qty
+      );
+
+      toast.success(updatedReq.status === "DELIVERED" ? `入庫完了！` : `入庫記録: ${qty}個`);
       setReceiveGoodsModal({ isOpen: false, target: null, qty: 0, note: "" });
     } catch (error) {
       console.error(error);

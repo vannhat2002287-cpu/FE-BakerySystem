@@ -17,7 +17,7 @@ interface FactoryRequestDTO {
 }
 
 // DTO response từ Backend
-interface FactoryRequestResponseDTO {
+export interface FactoryRequestResponseDTO {
   request_id: number;
   product_id: number;
   product_name: string;
@@ -45,7 +45,9 @@ export interface FactoryRequest {
 }
 
 // Chuyển DTO sang format Frontend
-function mapFactoryRequestDTOToFactoryRequest(dto: FactoryRequestResponseDTO): FactoryRequest {
+export function mapFactoryRequestDTOToFactoryRequest(
+  dto: FactoryRequestResponseDTO
+): FactoryRequest {
   const today = new Date().toISOString().split("T")[0];
   return {
     request_id: String(dto.request_id),
