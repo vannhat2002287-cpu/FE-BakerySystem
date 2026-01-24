@@ -694,19 +694,13 @@ const AutoOrderModal: React.FC<{
 
         <div className="custom-scrollbar flex-1 overflow-y-auto bg-slate-50 p-6">
           <div className="space-y-3">
-            {sortedResults.map((result) => (
+            {productsToOrder.map((result) => (
               <div
                 key={result.product_id}
-                className={`flex items-center justify-between rounded-xl border p-4 transition-all ${
-                  result.should_order
-                    ? "border-orange-200 bg-white shadow-sm"
-                    : "border-slate-200 bg-slate-100/50 opacity-60 grayscale"
-                }`}
+                className="flex items-center justify-between rounded-xl border border-orange-200 bg-white p-4 shadow-sm transition-all"
               >
                 <div className="flex items-center gap-4">
-                  <div
-                    className={`h-3 w-3 rounded-full shadow-sm ${result.should_order ? "animate-pulse bg-orange-500" : "bg-slate-300"}`}
-                  ></div>
+                  <div className="h-3 w-3 animate-pulse rounded-full bg-orange-500 shadow-sm"></div>
                   <div>
                     <div className="font-bold text-slate-800">{result.product_name}</div>
                     <div className="mt-1 flex items-center gap-3 text-xs font-medium text-slate-500">
@@ -720,23 +714,22 @@ const AutoOrderModal: React.FC<{
                   </div>
                 </div>
 
-                {result.should_order ? (
-                  <div className="text-right">
-                    <span className="block text-[10px] font-bold text-slate-400 uppercase">
-                      推奨発注数
-                    </span>
-                    <span className="text-xl font-black text-orange-600">
-                      {result.suggested_quantity}
-                    </span>
-                    <span className="ml-1 text-xs font-bold text-orange-600">個</span>
-                  </div>
-                ) : (
-                  <div className="rounded-lg bg-slate-200 px-3 py-1 text-xs font-bold text-slate-500">
-                    対象外: {result.skip_reason}
-                  </div>
-                )}
+                <div className="text-right">
+                  <span className="block text-[10px] font-bold text-slate-400 uppercase">
+                    推奨発注数
+                  </span>
+                  <span className="text-xl font-black text-orange-600">
+                    {result.suggested_quantity}
+                  </span>
+                  <span className="ml-1 text-xs font-bold text-orange-600">個</span>
+                </div>
               </div>
             ))}
+            {productsToOrder.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-10 text-slate-400">
+                <p className="font-bold">発注が必要な商品はありません</p>
+              </div>
+            )}
           </div>
         </div>
 
