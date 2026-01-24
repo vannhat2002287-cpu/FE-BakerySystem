@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import {
   getAllFactoryRequests,
+  getFactoryRequestsByDate,
   createFactoryRequest,
   updateFactoryRequestStatus,
   FactoryRequest,
@@ -977,7 +978,7 @@ const InventoryPage: React.FC = () => {
     const fetchFactoryRequests = async () => {
       try {
         setIsLoadingFactoryRequests(true);
-        const requests = await getAllFactoryRequests();
+        const requests = await getFactoryRequestsByDate(historyFilters.date);
         setFactoryRequests(requests);
       } catch (error) {
         console.error(error);
@@ -987,7 +988,7 @@ const InventoryPage: React.FC = () => {
       }
     };
     fetchFactoryRequests();
-  }, []);
+  }, [historyFilters.date]);
 
   // --- Các Memo (Dữ liệu được tính toán và ghi nhớ) ---
   const mergedData = useMemo(() => {
@@ -1007,8 +1008,6 @@ const InventoryPage: React.FC = () => {
 
   const filteredHistoryRequests = useMemo(() => {
     let filtered = factoryRequests.filter((req) => {
-      const reqDateStr = req.business_date || req.created_at.split("T")[0];
-      if (reqDateStr !== historyFilters.date) return false;
       if (historyFilters.status !== "all" && req.status !== historyFilters.status) return false;
       return true;
     });

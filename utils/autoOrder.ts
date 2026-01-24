@@ -117,7 +117,7 @@ export async function checkAllProductsForAutoOrder(
   // Lấy danh sách requests đang active của ngày hôm nay
   let activeRequests: FactoryRequest[] = [];
   try {
-    activeRequests = await getActiveFactoryRequestsToday();
+    activeRequests = await getActiveFactoryRequestsToday("PENDING");
   } catch (error) {
     console.error("Failed to get active requests:", error);
   }

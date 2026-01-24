@@ -87,27 +87,39 @@ export async function getAllFactoryRequests(): Promise<FactoryRequest[]> {
 }
 
 // Lấy yêu cầu đặt hàng theo ngày (cho filter theo business_date)
-export async function getFactoryRequestsByDate(businessDate: string): Promise<FactoryRequest[]> {
-  // Thử gọi API với filter date nếu Backend hỗ trợ
+export async function getFactoryRequestsByDate(
+  businessDate: string,
+  status?: FactoryRequestStatus
+): Promise<FactoryRequest[]> {
   try {
-    const url = buildApiUrl(API_ENDPOINTS.FACTORY_REQUESTS, { date: businessDate });
+    const params: any = {};
+    if (businessDate) params.date = businessDate;
+    if (status) params.status = status;
+
+    const url = buildApiUrl(API_ENDPOINTS.FACTORY_REQUESTS, params);
     const data = await apiRequest<FactoryRequestResponseDTO[]>(url);
     return data.map(mapFactoryRequestDTOToFactoryRequest);
   } catch {
     // Fallback: Lấy tất cả và filter ở client
     const allRequests = await getAllFactoryRequests();
     return allRequests.filter((req) => {
-      // Filter theo business_date hoặc created_at
       const reqDate = req.business_date || req.created_at.split("T")[0];
-      return reqDate === businessDate;
+      const matchDate = reqDate === businessDate;
+      const matchStatus = status ? req.status === status : true;
+      return matchDate && matchStatus;
     });
   }
 }
 
 // Lấy yêu cầu đang active của ngày hôm nay (PENDING hoặc PARTIAL)
-export async function getActiveFactoryRequestsToday(): Promise<FactoryRequest[]> {
+export async function getActiveFactoryRequestsToday(
+  status?: FactoryRequestStatus
+): Promise<FactoryRequest[]> {
   const today = getCurrentBusinessDate();
-  const requests = await getFactoryRequestsByDate(today);
+  const requests = await getFactoryRequestsByDate(today, status);
+
+  if (status) return requests;
+
   return requests.filter((req) => req.status === "PENDING" || req.status === "PARTIAL");
 }
 
