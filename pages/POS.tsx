@@ -10,6 +10,7 @@ import { Product, OrderType, PaymentMethod, Category } from "@/types";
 import { getCategories } from "@/api/categories";
 import toast from "react-hot-toast";
 import Loading from "@/components/Loading";
+import { formatDateTime } from "@/utils/date";
 
 // Component chính cho màn hình bán hàng POS
 const POS: React.FC = () => {
@@ -95,7 +96,7 @@ const POS: React.FC = () => {
 
     if (isAlcoholic && !isAlcoholAllowed) {
       toast.error(
-        `アルコール類は${ALCOHOL_START_HOUR}:00以降のみ販売可能です。(現在: ${currentTime.toLocaleTimeString([], { timeZone: "Asia/Ho_Chi_Minh" })})`
+        `アルコール類は${ALCOHOL_START_HOUR}:00以降のみ販売可能です。(現在: ${formatDateTime(currentTime, "h:mm A")})`
       );
       return;
     }
@@ -140,12 +141,7 @@ const POS: React.FC = () => {
             </h2>
             <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-4 py-1.5 text-sm font-semibold text-slate-600">
               <Clock className="h-4 w-4 text-orange-500" />
-              {currentTime.toLocaleTimeString("ja-JP", {
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit",
-                timeZone: "Asia/Ho_Chi_Minh",
-              })}
+              {formatDateTime(currentTime, "HH:mm:ss")}
             </div>
           </div>
 

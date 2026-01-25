@@ -9,6 +9,7 @@ import { getProducts } from "../api/products";
 import { getAllInventory, getCurrentBusinessDate } from "../api/inventory";
 import { createOrder } from "../api/orders";
 import { ApiError } from "../api/client";
+import { dateHelper } from "@/utils/date";
 import toast from "react-hot-toast";
 
 // Định nghĩa kiểu dữ liệu cho Context
@@ -176,7 +177,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           ? {
               ...item,
               current_quantity: newQuantity,
-              last_updated: new Date().toISOString(),
+              last_updated: dateHelper().toISOString(),
             }
           : item
       )

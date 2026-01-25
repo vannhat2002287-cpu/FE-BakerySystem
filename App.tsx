@@ -4,7 +4,6 @@
  * Thiết lập routing, providers và layout chung
  */
 
-import React from "react";
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { StoreProvider } from "./store/StoreContext";
@@ -14,8 +13,14 @@ import Dashboard from "./pages/Dashboard";
 import InventoryPage from "./pages/Inventory";
 import HistoryPage from "./pages/History";
 import { toastConfig } from "./config/toast";
+import { initLocale } from "./utils/date";
+import { useEffect } from "react";
 
 function App() {
+  useEffect(() => {
+    initLocale();
+  }, []);
+
   return (
     // StoreProvider: cung cấp global state cho toàn app
     <StoreProvider>

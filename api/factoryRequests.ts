@@ -6,6 +6,7 @@ import { apiRequest } from "./client";
 import { buildApiUrl, API_ENDPOINTS } from "./config";
 import { FactoryRequestStatus } from "../types";
 import { getCurrentBusinessDate } from "./inventory";
+import { getLocalBusinessDate } from "@/utils/date";
 
 // DTO request tạo yêu cầu
 interface FactoryRequestDTO {
@@ -48,7 +49,7 @@ export interface FactoryRequest {
 export function mapFactoryRequestDTOToFactoryRequest(
   dto: FactoryRequestResponseDTO
 ): FactoryRequest {
-  const today = new Date().toISOString().split("T")[0];
+  const today = getLocalBusinessDate();
   return {
     request_id: String(dto.request_id),
     product_id: String(dto.product_id),

@@ -17,17 +17,7 @@ import {
 import { getOrdersByDate } from "@/api/orders";
 import { Order } from "@/types";
 import Loading from "@/components/Loading";
-import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
-import timezone from "dayjs/plugin/timezone";
-import isBetween from "dayjs/plugin/isBetween";
-
-dayjs.extend(utc);
-dayjs.extend(timezone);
-dayjs.extend(isBetween);
-
-// ==== HẰNG SỐ MÚI GIỜ SERVER ====
-const SERVER_ZONE = "Asia/Ho_Chi_Minh";
+import { formatDateTime, getLocalBusinessDate, dateHelper as dayjs } from "@/utils/date";
 
 // ==== HÀM TẠO MẢNG NGÀY TRONG KHOẢNG ====
 const getDaysArray = (start: string, end: string): string[] => {
@@ -53,13 +43,9 @@ const HistoryPage: React.FC = () => {
   // Trạng thái loading khi lấy đơn hàng
   const [isLoading, setIsLoading] = useState<boolean>(true);
   // Ngày bắt đầu lọc
-  const [startDate, setStartDate] = useState<string>(() =>
-    dayjs().tz(SERVER_ZONE).format("YYYY-MM-DD")
-  );
+  const [startDate, setStartDate] = useState<string>(() => getLocalBusinessDate());
   // Ngày kết thúc lọc
-  const [endDate, setEndDate] = useState<string>(() =>
-    dayjs().tz(SERVER_ZONE).format("YYYY-MM-DD")
-  );
+  const [endDate, setEndDate] = useState<string>(() => getLocalBusinessDate());
   // Tab đang chọn: daily (theo ngày) hoặc product (phân tích sản phẩm)
   const [activeTab, setActiveTab] = useState<"daily" | "product">("daily");
   // ID đơn hàng đang mở chi tiết
@@ -347,7 +333,7 @@ const HistoryPage: React.FC = () => {
                                 #{order.order_id}
                               </div>
                               <div className="text-xs text-slate-400">
-                                {dayjs.tz(order.order_time, SERVER_ZONE).format("YYYY/MM/DD HH:mm")}
+                                {formatDateTime(order.order_time, "YYYY/MM/DD HH:mm")}
                               </div>
                             </td>
                             <td className="px-6 py-4 text-center">
@@ -434,7 +420,7 @@ const HistoryPage: React.FC = () => {
                                 日時 {/* Ngày giờ đặt hàng */}
                               </div>
                               <div className="font-medium text-slate-800">
-                                {dayjs.tz(order.order_time, SERVER_ZONE).format("MM/DD HH:mm")}
+                                {formatDateTime(order.order_time, "MM/DD HH:mm")}
                               </div>
                             </div>
                             <div className="rounded-lg bg-slate-50 p-3">

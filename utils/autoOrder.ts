@@ -15,7 +15,7 @@ import {
   getActiveFactoryRequestsToday,
   createFactoryRequest,
 } from "../api/factoryRequests";
-import { getCurrentBusinessDate } from "../api/inventory";
+import { dateHelper, getLocalBusinessDate } from "@/utils/date";
 
 // Cấu hình mặc định
 export const AUTO_ORDER_CONFIG = {
@@ -167,16 +167,8 @@ export async function getProductsNeedingOrder(
 export function createEtaTime(
   minutesFromNow: number = AUTO_ORDER_CONFIG.DEFAULT_ETA_MINUTES
 ): string {
-  const eta = new Date();
-  eta.setMinutes(eta.getMinutes() + minutesFromNow);
-
-  const year = eta.getFullYear();
-  const month = String(eta.getMonth() + 1).padStart(2, "0");
-  const day = String(eta.getDate()).padStart(2, "0");
-  const hours = String(eta.getHours()).padStart(2, "0");
-  const minutes = String(eta.getMinutes()).padStart(2, "0");
-
-  return `${year}-${month}-${day}T${hours}:${minutes}:00`;
+  const eta = dateHelper().add(minutesFromNow, "minute");
+  return eta.format("YYYY-MM-DDTHH:mm:ss");
 }
 
 // Thực hiện auto-order cho một sản phẩm
@@ -186,7 +178,7 @@ export async function executeAutoOrder(
   note?: string
 ): Promise<FactoryRequest> {
   const etaAt = createEtaTime();
-  const autoNote = note || `自動発注 (${new Date().toLocaleTimeString("ja-JP")})`;
+  const autoNote = note || `自動発注 (${getLocalBusinessDate("HH:mm:ss")})`;
 
   return createFactoryRequest(productId, quantity, etaAt, autoNote);
 }

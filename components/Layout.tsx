@@ -16,6 +16,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { useStore } from "../store/StoreContext";
+import { formatDateTime } from "@/utils/date";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -43,22 +44,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     setSimulationTime(newDate);
   };
 
-  // Format giờ hiển thị (HH:MM)
-  const formattedTime = currentTime.toLocaleTimeString("ja-JP", {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "Asia/Ho_Chi_Minh",
-  });
-  // Giá trị cho input time (HH:MM) theo múi giờ VN
-  const hhmm = currentTime
-    .toLocaleTimeString("en-GB", {
-      hour12: false,
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: "Asia/Ho_Chi_Minh",
-    })
-    .split(":");
-  const inputValue = `${hhmm[0]}:${hhmm[1]}`;
+  const formattedTime = formatDateTime(currentTime, "HH:mm");
 
   return (
     <div className="flex h-screen w-full bg-gray-50">

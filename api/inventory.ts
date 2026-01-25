@@ -5,6 +5,7 @@
 import { apiRequest } from "./client";
 import { buildApiUrl, API_ENDPOINTS } from "./config";
 import { Inventory, InventoryExtended } from "../types";
+import { getLocalBusinessDate } from "@/utils/date";
 
 // DTO từ Backend
 interface InventoryDTO {
@@ -34,7 +35,7 @@ function mapInventoryDTOToInventory(dto: InventoryDTO): Inventory {
 
 // Chuyển DTO mở rộng sang format Frontend
 function mapInventoryExtendedDTOToInventoryExtended(dto: InventoryExtendedDTO): InventoryExtended {
-  const today = new Date().toISOString().split("T")[0];
+  const today = getLocalBusinessDate();
   return {
     product_id: String(dto.product_id),
     current_quantity: dto.current_quantity,
@@ -100,7 +101,7 @@ export async function resetDailyInventory(
       body: JSON.stringify({
         product_ids: productIds.map((id) => parseInt(id)),
         default_quantity: defaultQuantity,
-        business_date: new Date().toISOString().split("T")[0],
+        business_date: getLocalBusinessDate(),
       }),
     });
     return { success: true, updated: productIds.length, errors: [] };
@@ -129,7 +130,7 @@ export async function resetDailyInventory(
 // Lấy ngày kinh doanh hiện tại từ localStorage hoặc mặc định là hôm nay
 export function getCurrentBusinessDate(): string {
   const stored = localStorage.getItem("bakery_business_date");
-  const today = new Date().toISOString().split("T")[0];
+  const today = getLocalBusinessDate();
 
   if (stored) {
     return stored;
@@ -145,13 +146,13 @@ export function setCurrentBusinessDate(date: string): void {
 // Kiểm tra xem đã reset kho cho ngày hôm nay chưa
 export function hasResetTodayInventory(): boolean {
   const lastReset = localStorage.getItem("bakery_last_inventory_reset");
-  const today = new Date().toISOString().split("T")[0];
+  const today = getLocalBusinessDate();
   return lastReset === today;
 }
 
 // Đánh dấu đã reset kho cho ngày hôm nay
 export function markInventoryResetDone(): void {
-  const today = new Date().toISOString().split("T")[0];
+  const today = getLocalBusinessDate();
   localStorage.setItem("bakery_last_inventory_reset", today);
   setCurrentBusinessDate(today);
 }

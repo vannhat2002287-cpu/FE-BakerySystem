@@ -102,8 +102,6 @@ export async function createOrder(
   const url = buildApiUrl(API_ENDPOINTS.ORDERS);
   const requestBody = mapOrderToRequestDTO(items, orderType, paymentMethod, paymentReceived);
 
-  console.log("Creating order with request body:", JSON.stringify(requestBody, null, 2));
-
   const data = await apiRequest<OrderDTO>(url, {
     method: "POST",
     body: JSON.stringify(requestBody),

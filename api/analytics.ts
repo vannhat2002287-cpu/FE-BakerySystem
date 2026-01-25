@@ -5,6 +5,7 @@
 import { apiRequest } from "./client";
 import { buildApiUrl, API_ENDPOINTS } from "./config";
 import { getOrdersByDate } from "./orders";
+import { getLocalBusinessDate } from "@/utils/date";
 
 // DTO sản phẩm bán chạy
 interface PopularProductDTO {
@@ -68,7 +69,7 @@ export async function getDashboard(): Promise<DashboardData> {
   let takeawaySales = 0;
 
   try {
-    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+    const today = getLocalBusinessDate();
     const todaysOrders = await getOrdersByDate(today);
 
     todaysOrders.forEach((order) => {

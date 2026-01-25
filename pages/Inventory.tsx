@@ -52,19 +52,11 @@ import {
 } from "@/utils/autoOrder";
 import { apiRequest } from "@/api/client";
 import { API_ENDPOINTS, buildApiUrl } from "@/api/config";
+import { formatDateTime, getLocalBusinessDate, dateHelper } from "@/utils/date";
 
 // --- CÁC HÀM TIỆN ÍCH ---
-const addMinutes = (date: Date, minutes: number) => new Date(date.getTime() + minutes * 60 * 1000);
-
-const formatJa = (iso: string) =>
-  new Date(iso).toLocaleString("ja-JP", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+const addMinutes = (date: Date | string, minutes: number) =>
+  dateHelper(date).add(minutes, "minute").toDate();
 
 // Component nhỏ: Thanh tiến độ (Visual Bar) - Phong cách Slate
 const ProgressBar: React.FC<{ value: number; max: number; colorClass?: string }> = ({
@@ -276,14 +268,7 @@ const InventoryTable: React.FC<{
                     </div>
                   </td>
                   <td className="hidden px-6 py-4 text-center font-mono text-xs font-medium text-slate-500 md:table-cell">
-                    {item.lastUpdated
-                      ? new Date(item.lastUpdated).toLocaleString("ja-JP", {
-                          month: "numeric",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "—"}
+                    {item.lastUpdated ? formatDateTime(item.lastUpdated, "M/DD HH:mm") : "—"}
                   </td>
                   <td className="px-6 py-4 text-center">
                     <button
@@ -438,7 +423,7 @@ const HistoryTabContent: React.FC<{
                   <div>
                     <div className="flex items-center gap-1 text-[10px] font-bold tracking-wide text-slate-400 uppercase">
                       <Clock className="h-3 w-3" />
-                      {formatJa(req.created_at)}
+                      {formatDateTime(req.created_at, "YYYY/MM/DD HH:mm")}
                     </div>
                     <div
                       className="mt-1 line-clamp-1 text-lg font-bold text-slate-800 transition-colors group-hover:text-orange-600"
@@ -957,7 +942,7 @@ const InventoryPage: React.FC = () => {
   });
   const [historyFilters, setHistoryFilters] = useState({
     status: "all",
-    date: new Date().toISOString().split("T")[0],
+    date: getLocalBusinessDate(),
     sortBy: "newest",
   });
   const [confirmOpen, setConfirmOpen] = useState(false);

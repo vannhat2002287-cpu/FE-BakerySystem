@@ -33,6 +33,7 @@ import { getOrdersByDate } from "@/api/orders";
 import { ApiError } from "@/api/client";
 import toast from "react-hot-toast";
 import Loading from "@/components/Loading";
+import { getLocalBusinessDate } from "@/utils/date";
 
 // Component chính
 const Dashboard: React.FC = () => {
@@ -55,7 +56,7 @@ const Dashboard: React.FC = () => {
       setError(null);
       // Logic: Lấy đơn hàng hôm nay
       try {
-        const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+        const today = getLocalBusinessDate();
         const orders = await getOrdersByDate(today);
         const totalOrders = orders.length;
         const totalSales = orders.reduce((s, o) => s + (o.total_amount || 0), 0);
@@ -147,8 +148,7 @@ const Dashboard: React.FC = () => {
             <h1 className="text-3xl font-black tracking-tight text-slate-800">ダッシュボード</h1>
           </div>
           <p className="mt-2 pl-1 text-sm font-medium text-slate-500">
-            本日の店舗状況の概要 ({" "}
-            {new Date().toLocaleDateString("ja-JP", { timeZone: "Asia/Ho_Chi_Minh" })} )
+            本日の店舗状況の概要 ( {getLocalBusinessDate()} )
           </p>
         </div>
       </div>
