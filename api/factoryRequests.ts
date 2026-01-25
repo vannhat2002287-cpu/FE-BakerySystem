@@ -6,7 +6,7 @@ import { apiRequest } from "./client";
 import { buildApiUrl, API_ENDPOINTS } from "./config";
 import { FactoryRequestStatus } from "../types";
 import { getCurrentBusinessDate } from "./inventory";
-import { getLocalBusinessDate } from "@/utils/date";
+import { dateHelper, getLocalBusinessDate } from "@/utils/date";
 
 // DTO request tạo yêu cầu
 interface FactoryRequestDTO {
@@ -118,7 +118,8 @@ export async function getFactoryRequestsByDate(
 export async function getActiveFactoryRequestsToday(
   status?: FactoryRequestStatus
 ): Promise<FactoryRequest[]> {
-  const today = getCurrentBusinessDate();
+  // const today = getCurrentBusinessDate();
+  const today = dateHelper().format("YYYY-MM-DD");
   const requests = await getFactoryRequestsByDate(today, status);
 
   if (status) return requests;
