@@ -141,11 +141,19 @@ const HistoryPage: React.FC = () => {
     columnKey,
     title,
   }) => (
+    // Allow custom alignment for header
     <th
       onClick={() => handleSort(columnKey)}
-      className="cursor-pointer px-6 py-3 text-left text-xs font-bold tracking-wider text-slate-500 uppercase transition-colors hover:bg-slate-100"
+      className={
+        `cursor-pointer px-6 py-3 text-xs font-bold tracking-wider text-slate-500 uppercase transition-colors hover:bg-slate-100 ` +
+        (title === "合計金額" ? "text-right" : "text-left")
+      }
     >
-      <div className="flex items-center gap-1">
+      <div
+        className={
+          title === "合計金額" ? "flex items-center justify-end gap-1" : "flex items-center gap-1"
+        }
+      >
         {title}
         {sortKey === columnKey ? (
           sortDirection === "desc" ? (
@@ -229,11 +237,11 @@ const HistoryPage: React.FC = () => {
 
         {/* Stats Cards (Unified) - Thống kê tổng quan: tổng doanh thu, số lượng giao dịch, doanh thu theo loại đơn hàng */}
         <div className="grid grid-cols-3 gap-6 p-6 pb-0">
-          <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-            <div className="mb-1 text-xs font-bold tracking-wider text-slate-400 uppercase">
+          <div className="rounded-xl border border-slate-100 bg-white p-4 text-center shadow-sm">
+            <div className="mb-1 text-center text-xs font-bold tracking-wider text-slate-400 uppercase">
               総売上
             </div>
-            <div className="text-2xl font-black text-slate-800">
+            <div className="text-center text-2xl font-black text-slate-800">
               ¥
               {processedOrders
                 .reduce(
@@ -243,11 +251,11 @@ const HistoryPage: React.FC = () => {
                 .toLocaleString()}
             </div>
           </div>
-          <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-            <div className="mb-1 text-xs font-bold tracking-wider text-slate-400 uppercase">
+          <div className="rounded-xl border border-slate-100 bg-white p-4 text-center shadow-sm">
+            <div className="mb-1 text-center text-xs font-bold tracking-wider text-slate-400 uppercase">
               取引件数
             </div>
-            <div className="text-2xl font-black text-slate-800">
+            <div className="text-center text-2xl font-black text-slate-800">
               {activeTab === "daily"
                 ? processedOrders.length
                 : productAnalysis.reduce((sum, i) => sum + i.qty, 0)}{" "}

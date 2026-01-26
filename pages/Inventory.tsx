@@ -237,7 +237,7 @@ const InventoryTable: React.FC<{
                       <div>
                         <div className="font-bold text-slate-800">{item.name}</div>
                         <div className="mt-1 flex items-center text-xs font-medium text-slate-500">
-                          基準値: {item.threshold}
+                          発注点: {item.threshold}
                         </div>
                       </div>
                     </div>
@@ -252,13 +252,7 @@ const InventoryTable: React.FC<{
                         </span>
                         <span className="text-xs font-bold text-slate-400">個</span>
                       </div>
-                      <div className="w-32">
-                        <ProgressBar
-                          value={item.stock}
-                          max={item.threshold * 2.5}
-                          colorClass={barColor}
-                        />
-                      </div>
+                      {/* ProgressBar removed as requested */}
                       {isLow && (
                         <span className="inline-flex animate-pulse items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-600">
                           <TrendingDown className="h-3 w-3" />
