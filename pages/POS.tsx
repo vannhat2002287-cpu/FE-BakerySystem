@@ -204,6 +204,8 @@ const POS: React.FC = () => {
                   String(product.is_alcoholic) === "true";
 
                 const isAlcoholRestricted = isAlcoholic && !isAlcoholAllowed;
+                const threshold = invEntry?.min_threshold ?? 0;
+                const isLow = stock <= threshold;
                 const isOutOfStock = hasInventory && stock <= 0;
                 const isDisabled = isOutOfStock || isAlcoholRestricted;
 
@@ -229,12 +231,12 @@ const POS: React.FC = () => {
                           className={`absolute top-2 right-2 z-10 rounded-full px-2.5 py-1 text-xs font-bold shadow-sm backdrop-blur-md ${
                             stock <= 0
                               ? "bg-slate-800 text-white"
-                              : stock <= 5
+                              : isLow
                                 ? "bg-red-500 text-white"
                                 : "bg-white/90 text-slate-800"
                           }`}
                         >
-                          {stock <= 0 ? "在庫なし" : stock <= 5 ? `残り ${stock}` : `${stock}`}
+                          {stock <= 0 ? "在庫なし" : isLow ? `残り ${stock}` : `${stock}`}
                         </span>
                       )}
                       {isAlcoholRestricted && (
