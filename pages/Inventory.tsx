@@ -596,7 +596,7 @@ const RequestFactoryModal: React.FC<{
                   onChange={(e) => {
                     const val = e.target.value;
                     if (val === "") {
-                      setQtyStr("1");
+                      setQtyStr("");
                       return;
                     }
                     if (/^\d+$/.test(val)) {
