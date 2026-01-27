@@ -1107,12 +1107,12 @@ const InventoryPage: React.FC = () => {
       await resetDailyInventory(foodIds, AUTO_ORDER_CONFIG.DEFAULT_START_QUANTITY);
       foodIds.forEach((id) => updateInventory(id, AUTO_ORDER_CONFIG.DEFAULT_START_QUANTITY));
       if (drinkIds.length > 0) {
-        await resetDailyInventory(drinkIds, 99);
-        drinkIds.forEach((id) => updateInventory(id, 99));
+        await resetDailyInventory(drinkIds, 9999);
+        drinkIds.forEach((id) => updateInventory(id, 9999));
       }
       if (alcoholIds.length > 0) {
-        await resetDailyInventory(alcoholIds, 99);
-        alcoholIds.forEach((id) => updateInventory(id, 99));
+        await resetDailyInventory(alcoholIds, 9999);
+        alcoholIds.forEach((id) => updateInventory(id, 9999));
       }
       markInventoryResetDone();
       setIsResetDone(true);

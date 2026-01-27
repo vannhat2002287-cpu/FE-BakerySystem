@@ -49,8 +49,8 @@ function mapDashboardDTOToDashboardData(
       name: `${hour}:00`,
     })),
     typeData: [
-      { name: "店内 (Eat-in)", value: eatInSales },
-      { name: "持ち帰り (Takeaway)", value: takeawaySales },
+      { name: "店内", value: eatInSales },
+      { name: "持ち帰り", value: takeawaySales },
     ],
     popularProducts: dto.popular_products.map((product) => ({
       id: String(product.product_id),

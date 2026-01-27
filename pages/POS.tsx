@@ -161,13 +161,13 @@ const POS: React.FC = () => {
           <div className="scrollbar-hide flex space-x-2 overflow-x-auto pb-1">
             <button
               onClick={() => setSelectedCategory("all")}
-              className={`rounded-full px-5 py-2 text-sm font-bold transition-all ${
+              className={`rounded-full px-5 py-2 text-sm font-bold whitespace-nowrap transition-all ${
                 selectedCategory === "all"
                   ? "bg-slate-800 text-white shadow-lg"
                   : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
               }`}
             >
-              すべて
+              全て
             </button>
             {categories.map((cat) => (
               <button
@@ -223,17 +223,20 @@ const POS: React.FC = () => {
                         alt={product.name}
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                       />
-                      <span
-                        className={`absolute top-2 right-2 z-10 rounded-full px-2.5 py-1 text-xs font-bold shadow-sm backdrop-blur-md ${
-                          stock <= 0
-                            ? "bg-slate-800 text-white"
-                            : stock <= 5
-                              ? "bg-red-500 text-white"
-                              : "bg-white/90 text-slate-800"
-                        }`}
-                      >
-                        {stock <= 0 ? "在庫なし" : stock <= 5 ? `残り ${stock}` : `${stock}`}
-                      </span>
+                      {/* Ẩn số lượng tồn kho nếu là ドリンク hoặc アルコール */}
+                      {product.type !== "drink" && product.type !== "alcohol" && (
+                        <span
+                          className={`absolute top-2 right-2 z-10 rounded-full px-2.5 py-1 text-xs font-bold shadow-sm backdrop-blur-md ${
+                            stock <= 0
+                              ? "bg-slate-800 text-white"
+                              : stock <= 5
+                                ? "bg-red-500 text-white"
+                                : "bg-white/90 text-slate-800"
+                          }`}
+                        >
+                          {stock <= 0 ? "在庫なし" : stock <= 5 ? `残り ${stock}` : `${stock}`}
+                        </span>
+                      )}
                       {isAlcoholRestricted && (
                         <div className="absolute inset-0 flex items-center justify-center bg-slate-900/60 backdrop-blur-[2px]">
                           <span className="rounded-md border border-white/30 bg-black/40 px-3 py-1 text-sm font-bold text-white">
@@ -286,7 +289,7 @@ const POS: React.FC = () => {
                   : "text-slate-500 hover:text-slate-600"
               } ${!isEatInAllowed ? "cursor-not-allowed opacity-50" : ""}`}
             >
-              <span>店内 (Eat-in)</span>
+              <span>店内</span>
               {!isEatInAllowed && (
                 <span className="text-[10px] font-normal text-red-500">20:30終了</span>
               )}

@@ -125,8 +125,8 @@ const Dashboard: React.FC = () => {
       return dashboardData.typeData;
     }
     return [
-      { name: "店内 (Eat-in)", value: 0 },
-      { name: "持ち帰り (Takeaway)", value: 0 },
+      { name: "店内", value: 0 },
+      { name: "持ち帰り", value: 0 },
     ];
   }, [dashboardData?.typeData]);
   const popularProducts = (

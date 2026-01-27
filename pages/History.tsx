@@ -218,8 +218,8 @@ const HistoryPage: React.FC = () => {
                 className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium outline-none focus:border-orange-500"
               >
                 <option value="all">すべての注文</option>
-                <option value="eat-in">店内 (Eat-in)</option>
-                <option value="takeaway">持ち帰り (Takeaway)</option>
+                <option value="eat-in">店内)</option>
+                <option value="takeaway">持ち帰り</option>
               </select>
               <div className="relative">
                 <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
