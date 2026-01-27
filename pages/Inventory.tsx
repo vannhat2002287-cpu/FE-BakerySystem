@@ -509,31 +509,41 @@ const HistoryTabContent: React.FC<{
   </div>
 );
 
-// 4. Modal Yêu cầu đặt hàng (Thiết kế cập nhật)
+// 4. Modal Yêu cầu đặt hàng (Cập nhật: Dùng state nội bộ để nhập liệu mượt mà hơn)
 const RequestFactoryModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
-  target: { product_name: string; current_stock: number; threshold: number } | null;
-  qty: number;
-  eta: string;
-  note: string;
-  onQtyChange: (qty: number) => void;
-  onEtaChange: (eta: string) => void;
-  onNoteChange: (note: string) => void;
-  onSubmit: () => void;
-}> = ({
-  isOpen,
-  onClose,
-  target,
-  qty,
-  eta,
-  note,
-  onQtyChange,
-  onEtaChange,
-  onNoteChange,
-  onSubmit,
-}) => {
+  target: {
+    product_id: string;
+    product_name: string;
+    current_stock: number;
+    threshold: number;
+  } | null;
+  initialQty: number;
+  onSubmit: (data: { qty: number; eta: string; note: string }) => void;
+}> = ({ isOpen, onClose, target, initialQty, onSubmit }) => {
+  const [qtyStr, setQtyStr] = useState("");
+  const [eta, setEta] = useState("");
+  const [note, setNote] = useState("");
+
+  useEffect(() => {
+    if (isOpen) {
+      setQtyStr(initialQty.toString());
+      setEta(addMinutes(new Date(), 5).toISOString().slice(0, 16));
+      setNote("");
+    }
+  }, [isOpen, initialQty]);
+
   if (!isOpen || !target) return null;
+
+  const handleSubmit = () => {
+    const qty = parseInt(qtyStr, 10);
+    if (!qtyStr || isNaN(qty) || qty < 1) {
+      toast.error("数量は1以上である必要があります");
+      return;
+    }
+    onSubmit({ qty, eta, note });
+  };
 
   return (
     <div className="animate-in fade-in fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm transition-all">
@@ -580,10 +590,21 @@ const RequestFactoryModal: React.FC<{
               <label className="mb-1.5 block text-sm font-bold text-slate-700">依頼数量</label>
               <div className="relative">
                 <input
-                  type="number"
-                  min={1}
-                  value={qty}
-                  onChange={(e) => onQtyChange(Number.parseInt(e.target.value) || 1)}
+                  type="text"
+                  inputMode="numeric"
+                  value={qtyStr}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "") {
+                      setQtyStr("1");
+                      return;
+                    }
+                    if (/^\d+$/.test(val)) {
+                      const cleanVal =
+                        val.length > 1 && val.startsWith("0") ? val.replace(/^0+/, "") : val;
+                      setQtyStr(cleanVal);
+                    }
+                  }}
                   className="w-full rounded-xl border border-slate-300 px-4 py-3 text-lg font-bold text-slate-800 transition-all outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
                 />
                 <span className="absolute top-1/2 right-4 -translate-y-1/2 font-bold text-slate-400">
@@ -597,7 +618,7 @@ const RequestFactoryModal: React.FC<{
               <input
                 type="datetime-local"
                 value={eta}
-                onChange={(e) => onEtaChange(e.target.value)}
+                onChange={(e) => setEta(e.target.value)}
                 className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-700 transition-all outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
               />
             </div>
@@ -608,7 +629,7 @@ const RequestFactoryModal: React.FC<{
               </label>
               <textarea
                 value={note}
-                onChange={(e) => onNoteChange(e.target.value)}
+                onChange={(e) => setNote(e.target.value)}
                 className="w-full resize-none rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-700 transition-all outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
                 rows={2}
                 placeholder="例）急ぎでお願いします"
@@ -625,7 +646,7 @@ const RequestFactoryModal: React.FC<{
             キャンセル
           </button>
           <button
-            onClick={onSubmit}
+            onClick={handleSubmit}
             className="rounded-xl bg-orange-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-orange-200 transition-all hover:-translate-y-0.5 hover:bg-orange-700 hover:shadow-orange-300"
           >
             依頼を送信
@@ -920,9 +941,7 @@ const InventoryPage: React.FC = () => {
       current_stock: number;
       threshold: number;
     } | null,
-    qty: 1, // [FIX] Mặc định là 1
-    note: "",
-    eta: addMinutes(new Date(), 5).toISOString().slice(0, 16),
+    initialQty: 1,
   });
   const [autoOrderModal, setAutoOrderModal] = useState({
     isOpen: false,
@@ -1027,9 +1046,7 @@ const InventoryPage: React.FC = () => {
             current_stock: stock,
             threshold,
           },
-          qty: recommended, // CHỈ DÙNG BE
-          note: "",
-          eta: addMinutes(new Date(), 5).toISOString().slice(0, 16),
+          initialQty: recommended,
         });
       } catch (error) {
         console.error("Failed to get suggested quantity", error);
@@ -1041,7 +1058,7 @@ const InventoryPage: React.FC = () => {
   );
 
   // Xử lý gửi yêu cầu nhập hàng mới: Kiểm tra trùng lặp (đã có request pending chưa), gửi API tạo request, và cập nhật danh sách hiển thị.
-  const handleCreateFactoryRequest = async () => {
+  const handleCreateFactoryRequest = async (data: { qty: number; eta: string; note: string }) => {
     if (!requestModal.target) return;
     const hasActive = factoryRequests.some(
       (r) =>
@@ -1054,10 +1071,10 @@ const InventoryPage: React.FC = () => {
       return;
     }
     try {
-      const { target, qty, eta, note } = requestModal;
+      const { qty, eta, note } = data;
       let etaIso = eta.includes(":") && eta.split(":").length === 2 ? `${eta}:00` : eta;
       const newReq = await createFactoryRequest(
-        target!.product_id,
+        requestModal.target!.product_id,
         qty,
         etaIso,
         note?.trim() || undefined
@@ -1291,12 +1308,11 @@ const InventoryPage: React.FC = () => {
         onCancel={() => setConfirmResetAgain(false)}
       />
       <RequestFactoryModal
+        key={requestModal.isOpen ? "modal-open" : "modal-closed"}
         isOpen={requestModal.isOpen}
         onClose={() => setRequestModal((prev) => ({ ...prev, isOpen: false }))}
-        {...requestModal}
-        onQtyChange={(qty) => setRequestModal((prev) => ({ ...prev, qty }))}
-        onEtaChange={(eta) => setRequestModal((prev) => ({ ...prev, eta }))}
-        onNoteChange={(note) => setRequestModal((prev) => ({ ...prev, note }))}
+        target={requestModal.target}
+        initialQty={requestModal.initialQty}
         onSubmit={handleCreateFactoryRequest}
       />
       <AutoOrderModal
