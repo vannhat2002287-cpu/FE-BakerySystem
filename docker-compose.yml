@@ -1,0 +1,9 @@
+version: "3.8"
+
+services:
+  frontend:
+    build: .
+    image: bakery-frontend
+    container_name: bakery-frontend
+    ports:
+      - "3000:80"
